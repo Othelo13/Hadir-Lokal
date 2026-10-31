@@ -1,99 +1,207 @@
-# Hadir — Absensi Lokal
+<div align="center">
 
-Aplikasi web absensi karyawan magang dengan selfie bersama QR kantor. Admin mengelola anggota, QR, jadwal, dan rekap; anggota mencatat absen masuk dan pulang.
+# Hadir
 
-## Persyaratan
+**Sistem absensi magang lokal berbasis selfie dan QR kantor.**
 
-- Node.js 24 atau lebih baru, beserta npm.
-- Browser modern dengan izin kamera untuk mengambil selfie.
-- Internet untuk memasang dependensi pertama kali. Server dan data berjalan di komputer lokal.
+Kelola anggota, jadwal, dan bukti kehadiran dalam satu aplikasi web — dengan data yang disimpan di komputer sendiri.
 
-## Menjalankan di komputer sendiri
+**React 19** · **TypeScript** · **Vite 8** · **Node.js 24+** · **SQLite**
 
-Buka folder project melalui VS Code, lalu jalankan di terminal:
+</div>
+
+---
+
+## Tentang Hadir
+
+**Hadir** membantu pengelolaan absensi peserta magang melalui foto yang memperlihatkan **wajah peserta dan QR kantor dalam satu gambar**. Aplikasi membaca QR dari foto secara otomatis, menyimpan catatan kehadiran, lalu menyediakan bukti foto untuk ditinjau admin.
+
+Aplikasi berjalan secara lokal (*local-first*), tanpa memerlukan layanan cloud untuk server dan penyimpanan data. **Saat ini, aplikasi hanya dapat diakses dari komputer yang menjalankan server**, bukan dari perangkat lain melalui jaringan.
+
+### Fitur utama
+
+| Admin | Anggota magang |
+| --- | --- |
+| Membuat dan mengelola akun anggota | Absen masuk dan pulang dengan selfie + QR |
+| Mengatur hari kerja, jam, dan zona waktu | Melihat riwayat kehadiran sendiri |
+| Membuat, mencetak, dan menghapus QR kantor | Memperbarui nama, email, dan kata sandi |
+| Meninjau bukti foto dan status kehadiran | Melihat status peninjauan absensi |
+| Memfilter rekap dan mengekspor CSV | Mengakses aplikasi melalui akun pribadi |
+| Mengelola peran dan status anggota | — |
+
+> [!NOTE]
+> Sistem **memvalidasi QR pada foto**, bukan mengenali identitas wajah secara otomatis. Bukti wajah diperiksa oleh admin.
+
+## Cara kerja
+
+```mermaid
+flowchart LR
+    A["Admin membuat dan mencetak QR kantor"] --> B["Anggota login dan mengambil selfie bersama QR"]
+    B --> C["Server membaca dan memvalidasi QR dari foto"]
+    C --> D["Catatan dan foto disimpan secara lokal"]
+    D --> E["Admin meninjau bukti dan rekap kehadiran"]
+```
+
+Alur penggunaan pertama kali:
+
+1. Buat **akun admin pertama** setelah aplikasi dijalankan. Tidak ada akun atau kata sandi bawaan.
+2. Buka **Pengaturan** untuk menentukan hari kerja, jam masuk, jam pulang, dan zona waktu.
+3. Tambahkan akun melalui **Anggota magang**, kemudian sampaikan kredensial awal kepada masing-masing anggota secara aman.
+4. Buat dan cetak QR melalui **QR kantor**, lalu tempatkan di lokasi yang terang dan mudah terlihat.
+5. Anggota membuka **Absensi saya**, mengambil foto yang menampilkan wajah serta QR, lalu mengirim absensi.
+6. Admin memeriksa bukti di rekap, memberikan hasil peninjauan, dan mengekspor laporan CSV jika diperlukan.
+
+**Aturan awal:** hari kerja Senin–Sabtu; batas absen masuk pukul **09.00** dan absen pulang mulai **17.00** menurut zona waktu yang dipilih. Admin dapat mengubah jadwal dan mengizinkan absen masuk terlambat. Anggota hanya dapat absen pulang setelah mencatat absen masuk pada hari yang sama. Admin tidak mengisi absensi untuk dirinya sendiri.
+
+## Instalasi dan menjalankan aplikasi
+
+### Persyaratan
+
+- **Node.js 24 atau lebih baru** dan npm.
+- Browser modern dengan izin akses kamera untuk mengambil selfie.
+- Akses internet untuk mengunduh dependensi pada instalasi pertama.
+
+### 1. Unduh dan instal
 
 ```bash
+git clone https://github.com/Othelo13/Hadir-Lokal.git
+cd Hadir-Lokal
 npm ci
+```
+
+```bash
+node --version
+```
+
+Pastikan versi Node.js memenuhi persyaratan sebelum menjalankan aplikasi.
+
+### 2. Jalankan mode pengembangan
+
+```bash
 npm run dev
 ```
 
-Buka [http://127.0.0.1:5197](http://127.0.0.1:5197). Buat akun admin pertama melalui halaman yang muncul. Tidak ada akun atau kata sandi bawaan. Folder data dan database dibuat otomatis saat server pertama kali berjalan.
+Buka **http://127.0.0.1:5197** pada browser di komputer yang sama. Pada kunjungan pertama, aplikasi akan meminta pembuatan admin awal. Folder data serta database dibuat otomatis ketika server mulai berjalan.
 
-Di PowerShell, gunakan `npm.cmd` jika perintah `npm` diblokir oleh pengaturan eksekusi skrip. Hentikan server dengan **Ctrl+C**. Jalankan satu server saja pada port 5197.
+Perubahan frontend diperbarui otomatis, sedangkan perubahan file server memicu proses build ulang dan restart server pengembangan.
 
-Untuk menjalankan hasil build:
+### 3. Jalankan hasil build
 
 ```bash
 npm run build
 npm start
 ```
 
-Mode pengembangan memperbarui tampilan otomatis dan memulai ulang server saat kode server berubah. Aplikasi hanya mendengarkan pada `127.0.0.1`; akses dari HP atau komputer lain belum diaktifkan. Repository ini menyimpan kode aplikasi, bukan layanan hosting.
+Mode ini tetap menjalankan **server lokal**, bukan menerbitkan aplikasi ke internet. Hentikan server dengan **Ctrl+C**.
 
-## Penggunaan
+> [!TIP]
+> Di Windows PowerShell, gunakan `npm.cmd` sebagai pengganti `npm` apabila eksekusi skrip diblokir. Jika port `5197` sudah digunakan, tutup proses Hadir yang berjalan sebelumnya. Server mendengarkan pada `127.0.0.1`, sehingga HP atau komputer lain belum dapat mengaksesnya.
 
-1. Buat admin pertama, lalu tentukan hari kerja, jam masuk, jam pulang, dan zona waktu melalui **Pengaturan**.
-2. Tambahkan akun melalui **Anggota magang**. Berikan email dan kata sandi awal kepada anggota.
-3. Buat QR melalui **QR kantor**, cetak, lalu tempelkan di tempat yang terang.
-4. Anggota masuk dan mengambil selfie dengan wajah serta QR terlihat dalam foto yang sama melalui **Absensi saya**.
-5. Admin meninjau bukti foto, menyaring rekap berdasarkan nama/email atau tanggal, dan mengekspor hasilnya ke CSV.
+## Teknologi dan arsitektur
 
-Jadwal awal Senin–Sabtu, masuk paling lambat 09.00 dan pulang mulai 17.00. Admin dapat mengubah jadwal serta mengizinkan absensi terlambat. Admin tidak melakukan absensi sendiri.
+| Lapisan | Teknologi | Tanggung jawab |
+| --- | --- | --- |
+| Antarmuka | React 19, TypeScript, CSS, Lucide React | Dashboard, formulir, kamera, rekap, dan pengaturan |
+| Build & development | Vite 8, TypeScript, Prettier | Pengembangan UI, kompilasi, dan format kode |
+| Server | Node.js HTTP | Penyajian aplikasi, API, autentikasi, serta validasi |
+| Database | SQLite bawaan Node.js (`node:sqlite`) | Anggota, sesi, jadwal, QR, dan catatan absensi |
+| Foto & QR | `jpeg-js`, `jsqr`, `qrcode` | Pengolahan JPEG, pembacaan QR, dan pembuatan QR |
 
-Hanya admin dapat mengangkat admin lain. Minimal satu admin aktif harus tetap ada. Anggota dapat dihapus; akun dan sesi loginnya dihapus, sedangkan riwayat absensi dan foto tetap disimpan. Untuk menghapus akun admin, ubah perannya menjadi anggota terlebih dahulu setelah memastikan ada admin lain.
+Alur data sederhana: **React → API Node.js → SQLite + penyimpanan foto lokal**. Tidak diperlukan database server terpisah.
 
-Penghapusan QR membuat cetakannya tidak berlaku lagi untuk absensi berikutnya, tanpa menghapus riwayat sebelumnya.
-
-## Akun dan sesi
-
-- **Akun saya** menyediakan perubahan nama, email login, dan kata sandi. Semua kolom kata sandi memiliki tombol tampilkan/sembunyikan.
-- Perubahan profil memerlukan kata sandi saat ini. Email harus unik. Setelah email diubah, gunakan email baru untuk login; sesi pada browser lain dikeluarkan.
-- Sesi berlaku 12 jam. Perubahan atau reset kata sandi mencabut sesi lama. Kata sandi disimpan dalam bentuk hash scrypt.
-- Lupa kata sandi ditangani admin melalui daftar anggota; belum ada pemulihan melalui email.
-- Tab dalam satu profil browser memakai sesi yang sama. Gunakan browser berbeda atau jendela samaran untuk membuka akun admin dan anggota bersamaan.
-
-## Data dan cadangan
-
-Data disimpan di `data/hadir.sqlite`, sedangkan foto berada di `data/selfies/`. File database menyimpan akun, hash kata sandi, sesi login, pengaturan, QR, dan catatan absensi.
-
-Untuk membuat cadangan, hentikan server dengan **Ctrl+C**, lalu salin seluruh folder `data` ke lokasi pribadi. Untuk memulihkan, hentikan server lalu kembalikan folder tersebut dari cadangan.
-
-Database, foto, cadangan, sertifikat, dan file rahasia tidak disertakan dalam Git. Jangan mengunggah folder data atau arsip cadangan ke repository publik.
-
-Nama dan email pada catatan absensi lama tetap memakai identitas saat absensi dicatat. QR dibaca otomatis dari foto; wajah diperiksa admin. Belum ada pengenalan wajah otomatis, pemeriksaan keaktifan wajah, GPS, atau penghapusan otomatis berdasarkan masa simpan.
-
-Rekap memuat maksimal 2.000 catatan terbaru untuk admin dan 1.000 untuk anggota. Filter dan ekspor CSV bekerja pada catatan yang dimuat tersebut.
-
-## Struktur project
+<details>
+<summary><strong>Lihat struktur proyek</strong></summary>
 
 ```text
-src/
-  main.tsx             Titik masuk React
-  ui.tsx               Halaman dan interaksi aplikasi
-  PasswordInput.tsx    Kolom kata sandi dengan tombol tampilkan/sembunyikan
-  styles.css           Gaya tampilan dan cetak QR
-server/
-  api.ts               Aturan dan API absensi
-  auth.mjs             Login, profil, kata sandi, dan sesi
-  member-policy.mjs    Aturan pengelolaan anggota
-  storage.mjs          Penyimpanan SQLite dan foto
-  schema.sql           Struktur database
-  index.mjs            Server HTTP lokal
-scripts/
-  build-server.mjs      Menghasilkan server/api.mjs dari api.ts
-  dev.mjs              Menjalankan mode pengembangan
+Hadir-Lokal/
+├── src/
+│   ├── main.tsx             # Entry point React
+│   ├── ui.tsx               # Halaman dan interaksi aplikasi
+│   ├── PasswordInput.tsx    # Input kata sandi
+│   └── styles.css           # Desain antarmuka dan cetak QR
+├── server/
+│   ├── index.mjs            # Server HTTP lokal
+│   ├── api.ts               # Logika API dan absensi
+│   ├── auth.mjs             # Autentikasi, profil, dan sesi
+│   ├── member-policy.mjs    # Aturan pengelolaan anggota
+│   ├── storage.mjs          # Akses SQLite dan penyimpanan foto
+│   └── schema.sql           # Skema database
+├── scripts/
+│   ├── build-server.mjs     # Menghasilkan server/api.mjs
+│   └── dev.mjs              # Mode pengembangan
+├── index.html
+├── package.json
+├── package-lock.json
+├── tsconfig.json
+└── vite.config.ts
 ```
 
-`dist/`, `node_modules/`, dan `server/api.mjs` dibuat secara lokal dan tidak disertakan dalam Git. `package-lock.json` disertakan agar pemasangan dependensi konsisten.
+`dist/`, `node_modules/`, dan `server/api.mjs` dihasilkan secara lokal dan tidak disertakan dalam Git. File `package-lock.json` disertakan agar instalasi dependensi konsisten.
 
-## Perintah pengembangan
+</details>
+
+## Akun, peran, dan keamanan
+
+- **Login dan sesi:** sesi berlaku selama 12 jam, menggunakan cookie `HttpOnly` dan `SameSite=Strict`. Kata sandi disimpan sebagai hash **scrypt**.
+- **Profil:** anggota dapat mengubah nama, email login, dan kata sandi. Perubahan profil memerlukan kata sandi saat ini; email harus unik.
+- **Pencabutan sesi:** perubahan email mengeluarkan sesi pada browser lain, sedangkan perubahan atau reset kata sandi mencabut sesi lama.
+- **Pengelolaan admin:** hanya admin yang dapat mengangkat admin lain. Minimal satu admin aktif harus dipertahankan.
+- **Penghapusan anggota:** akun dan sesi anggota dihapus, tetapi catatan absensi serta bukti foto sebelumnya tetap disimpan. Admin harus terlebih dahulu mengubah perannya menjadi anggota sebelum akun dapat dihapus.
+- **QR kantor:** QR yang dihapus tidak lagi berlaku untuk absensi berikutnya; catatan lama tidak ikut dihapus.
+- **Pemulihan kata sandi:** dilakukan oleh admin melalui daftar anggota; pemulihan melalui email belum tersedia.
+
+Tab pada profil browser yang sama berbagi sesi login. Untuk menguji akun admin dan anggota secara bersamaan, gunakan profil browser berbeda atau jendela samaran.
+
+## Data, privasi, dan pencadangan
+
+Data aplikasi disimpan **di komputer tempat server berjalan**, dengan lokasi berikut:
+
+| Lokasi | Isi |
+| --- | --- |
+| `data/hadir.sqlite` | Akun, hash kata sandi, sesi, jadwal, QR, dan riwayat absensi |
+| `data/selfies/` | Foto bukti kehadiran |
+| `data/` | Folder yang perlu disertakan saat membuat cadangan |
+
+**Membuat cadangan:** hentikan server dengan `Ctrl+C`, lalu salin seluruh folder `data/` ke tempat pribadi yang aman. Untuk pemulihan, hentikan server dan kembalikan folder tersebut dari cadangan.
+
+> [!WARNING]
+> Foto absensi dan identitas anggota merupakan data pribadi. Batasi akses ke komputer serta berkas cadangan, dan tentukan kebijakan penyimpanan/penghapusan sesuai kebutuhan organisasi. Aplikasi **belum menyediakan penghapusan foto otomatis berdasarkan masa retensi**.
+
+Folder `data/`, database SQLite, foto, sertifikat, dan berkas rahasia dikecualikan oleh `.gitignore`. Jangan pernah memasukkan folder data atau cadangan ke repositori publik.
+
+Nama dan email yang tersimpan pada catatan absensi lama tetap mencerminkan identitas saat absensi dibuat, meskipun profil anggota kemudian berubah.
+
+## Pengembangan dan pemeriksaan kode
 
 ```bash
 npm run dev
 npm run build
-npm run format
 npm run format:check
 npx tsc --noEmit --noUncheckedSideEffectImports
 ```
 
-Teknologi utama: React, TypeScript, Vite, CSS, Node.js HTTP, SQLite bawaan Node.js, serta `qrcode`, `jsqr`, dan `jpeg-js` untuk QR dan foto. Versi dependensi tercantum di `package.json` dan `package-lock.json`.
+Untuk menerapkan format kode:
+
+```bash
+npm run format
+```
+
+Perintah di atas mencakup build, pemeriksaan format, dan pemeriksaan tipe TypeScript. **Belum ada skrip pengujian otomatis (`npm test`) yang dikonfigurasi** pada versi repositori ini; keberhasilan build tidak sama dengan pengujian fungsional menyeluruh.
+
+### Batasan saat ini
+
+- Aplikasi hanya dapat diakses melalui `127.0.0.1` pada komputer lokal; akses LAN dan hosting belum disiapkan.
+- QR dibaca otomatis dari foto, tetapi **wajah ditinjau manual oleh admin**. Belum ada pengenalan wajah, pemeriksaan keaktifan wajah (*liveness detection*), atau verifikasi GPS.
+- Foto dan catatan lama tetap disimpan hingga dikelola secara manual; belum ada aturan retensi otomatis.
+- Rekap mengambil maksimal **2.000 catatan terbaru** untuk admin dan **1.000 catatan terbaru** untuk anggota. Filter serta ekspor CSV hanya bekerja pada catatan yang sudah dimuat.
+- Reset kata sandi dilakukan oleh admin, bukan melalui tautan email.
+
+## Lisensi
+
+Repositori ini **belum memiliki berkas `LICENSE`**. Ketentuan penggunaan, modifikasi, dan distribusi ulang kode belum diberikan melalui lisensi open-source. Hubungi pemilik repositori jika membutuhkan izin penggunaan di luar hak yang diberikan oleh platform GitHub.
+
+---
+
+<div align="center">
+  <sub>Hadir — pencatatan kehadiran magang dengan data yang tetap berada di komputer lokal.</sub>
+</div>
