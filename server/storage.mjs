@@ -36,6 +36,18 @@ function photoPath(key) {
     throw new Error('Invalid photo path');
   return result;
 }
+// Selesaikan penghapusan foto yang tertunda akibat aplikasi terhenti saat pembatalan.
+for (const row of sqlite
+  .prepare('SELECT id, photo_cleanup_key FROM attendance_cancellations WHERE photo_cleanup_key IS NOT NULL')
+  .all()) {
+  try {
+    const target = photoPath(row.photo_cleanup_key);
+    if (existsSync(target)) unlinkSync(target);
+    sqlite.prepare('UPDATE attendance_cancellations SET photo_cleanup_key=NULL WHERE id=?').run(row.id);
+  } catch {
+    // Tetap simpan penanda agar dicoba lagi pada startup selanjutnya.
+  }
+}
 export const bucket = {
   async put(key, bytes) {
     const target = photoPath(key);
