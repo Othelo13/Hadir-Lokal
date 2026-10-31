@@ -1544,6 +1544,27 @@ footer > span:first-child {
   color: #a45540;
 }
 
+/* Bukti selfie yang dibatalkan: badge dan alasan sejajar, tetap terbaca pada layar kecil. */
+.cancelled-proof {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  min-width: 0;
+}
+.cancelled-proof-reason {
+  display: block;
+  max-width: 280px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #667365;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.cancelled-proof-reason strong {
+  font-weight: 600;
+  color: #4e614c;
+}
 /* Pembatalan absensi ditampilkan jelas tanpa menyimpan foto. */
 .badge.danger {
   color: #9c493f;
