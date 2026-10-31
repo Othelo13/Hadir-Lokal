@@ -56,6 +56,14 @@ export default function Dashboard() {
     [settingsFeedback, setSettingsFeedback] = useState<{ error: boolean; message: string } | null>(
       null,
     );
+  useEffect(() => {
+    if (!mobile) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMobile(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [mobile]);
   const video = useRef<HTMLVideoElement>(null),
     stream = useRef<MediaStream | null>(null),
     cameraSession = useRef(0),
@@ -499,10 +507,26 @@ export default function Dashboard() {
   );
   return (
     <div className="app">
-      <aside className={mobile ? 'sidebar show' : 'sidebar'}>
+      {mobile && (
+        <button
+          type="button"
+          className="sidebar-backdrop"
+          aria-label="Tutup menu navigasi"
+          onClick={() => setMobile(false)}
+        />
+      )}
+      <aside className={mobile ? 'sidebar show' : 'sidebar'} id="sidebar-navigation">
         <a className="brand" href="/" aria-label="Hadir beranda">
           <span>h.</span>hadir<span className="brand-dot">®</span>
         </a>
+        <button
+          type="button"
+          className="sidebar-close"
+          aria-label="Tutup menu"
+          onClick={() => setMobile(false)}
+        >
+          <X size={20} />
+        </button>
         <nav>
           {nav.map(([id, label, Icon]: any) => (
             <button
@@ -562,6 +586,7 @@ export default function Dashboard() {
             className="icon-button mobile-menu"
             aria-label={mobile ? 'Tutup menu' : 'Buka menu'}
             aria-expanded={mobile}
+            aria-controls="sidebar-navigation"
             onClick={() => setMobile(!mobile)}
           >
             <Menu />
