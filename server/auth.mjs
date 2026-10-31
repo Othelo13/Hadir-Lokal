@@ -8,6 +8,9 @@ import {
 import { promisify } from 'node:util';
 import { sqlite } from './storage.mjs';
 const scrypt = promisify(scryptCallback);
+// The public URL is HTTPS even though cloudflared connects to localhost over HTTP.
+const sessionCookieOptions = (req) =>
+  req.url.startsWith('https://') ? '; Secure' : '';
 const respond = (v, status = 200, headers = {}) =>
   Response.json(v, { status, headers: { 'Cache-Control': 'no-store', ...headers } });
 function fail(message, status = 400) {
@@ -55,14 +58,14 @@ function credentials(body) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) fail('Email tidak valid.');
   return { email, name };
 }
-function beginSession(user) {
+function beginSession(user, req) {
   const value = randomBytes(32).toString('hex');
   sqlite.prepare('DELETE FROM sessions WHERE expires<?').run(Date.now());
   sqlite
     .prepare('INSERT INTO sessions VALUES (?,?,?)')
     .run(digest(value), user.user_id, Date.now() + 12 * 60 * 60 * 1000);
   return respond({ ok: true }, 200, {
-    'Set-Cookie': `hadir_session=${value}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200`,
+    'Set-Cookie': `hadir_session=${value}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200${sessionCookieOptions(req)}`,
   });
 }
 function requireAdmin(req) {
@@ -119,7 +122,7 @@ export async function authAction(req, action, body) {
       sqlite.exec('ROLLBACK');
       throw e;
     }
-    return beginSession({ user_id: id });
+    return beginSession({ user_id: id }, req);
   }
   if (action === 'login') {
     limit('login');
@@ -132,13 +135,13 @@ export async function authAction(req, action, body) {
     if (!(await verify(body.password, user?.password_hash || dummy)) || !user)
       fail('Email atau kata sandi tidak sesuai.', 401);
     attempts.delete('login');
-    return beginSession(user);
+    return beginSession(user, req);
   }
   if (action === 'logout') {
     const t = token(req);
     if (t) sqlite.prepare('DELETE FROM sessions WHERE token_hash=?').run(digest(t));
     return respond({ ok: true }, 200, {
-      'Set-Cookie': 'hadir_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0',
+      'Set-Cookie': `hadir_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${sessionCookieOptions(req)}`,
     });
   }
   if (action === 'member-create') {
@@ -206,7 +209,7 @@ export async function authAction(req, action, body) {
       throw e;
     }
     attempts.delete('password:' + me.user_id);
-    return beginSession(me);
+    return beginSession(me, req);
   }
   if (action === 'password-reset') {
     const actor = requireAdmin(req),
