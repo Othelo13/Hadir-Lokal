@@ -981,6 +981,8 @@ footer > span:first-child {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  /* Tampilkan kamera depan seperti cermin; data foto asli tetap tanpa pembalikan. */
+  transform: scaleX(-1);
 }
 .camera-view > span {
   position: absolute;
