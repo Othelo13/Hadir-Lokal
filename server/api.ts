@@ -280,6 +280,39 @@ async function handle(req: Request) {
       }),
     });
   }
+  if (action === 'delete-record') {
+    if (typeof body.id !== 'string' || !/^[0-9a-f-]{36}$/i.test(body.id))
+      fail('Pilih catatan absensi yang valid.');
+    // Transaksi SQLite sinkron mencegah dua penghapusan catatan yang sama dan
+    // memastikan metadata audit tersimpan bersama perubahan pada rekap.
+    const row = sqlite.prepare('SELECT * FROM records WHERE id=?').get(body.id);
+    if (!row) fail('Catatan absensi sudah dihapus atau tidak ditemukan.', 404);
+    if (
+      row.kind === 'in' &&
+      sqlite.prepare("SELECT id FROM records WHERE user_id=? AND date=? AND kind='out'")
+        .get(row.user_id, row.date)
+    )
+      fail('Hapus catatan absen pulang pada tanggal ini terlebih dahulu.', 409);
+    sqlite.exec('BEGIN IMMEDIATE');
+    try {
+      const deleted = sqlite.prepare('DELETE FROM records WHERE id=? RETURNING id').get(row.id);
+      if (!deleted) fail('Catatan absensi sudah dihapus atau tidak ditemukan.', 404);
+      sqlite.prepare(
+        'INSERT INTO record_deletions (record_id,user_id,date,kind,deleted_by,deleted_at) VALUES (?,?,?,?,?,?)',
+      ).run(row.id, row.user_id, row.date, row.kind, user.userId, new Date().toISOString());
+      sqlite.exec('COMMIT');
+    } catch (error) {
+      sqlite.exec('ROLLBACK');
+      throw error;
+    }
+    // Jika file gagal dihapus, catatan audit tetap ada; file dapat dibersihkan manual.
+    try {
+      await bucket.delete(row.photo);
+    } catch {
+      return json({ ok: true, warning: 'Catatan dihapus, tetapi file foto gagal dibersihkan.' });
+    }
+    return json({ ok: true });
+  }
   if (action === 'review') {
     if (!['approved', 'rejected'].includes(body.review)) fail('Status tidak valid.');
     await db.prepare('UPDATE records SET review=? WHERE id=?').bind(body.review, body.id).run();
