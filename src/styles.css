@@ -1121,6 +1121,15 @@ footer > span:first-child {
   }
 }
 @media (max-width: 800px) {
+  /* Bingkai kamera lebih tinggi pada layar mobile agar wajah dan QR lebih mudah diposisikan. */
+  .camera-modal .camera-view {
+    aspect-ratio: 3 / 4;
+    max-height: min(65dvh, 800px);
+  }
+  .camera-modal .camera-view video,
+  .camera-modal .camera-view img {
+    object-fit: cover;
+  }
   .sidebar-backdrop {
     display: block;
     position: fixed;
