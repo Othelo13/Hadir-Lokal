@@ -451,6 +451,15 @@ export default function Dashboard() {
     month: 'long',
     year: 'numeric',
   });
+  async function removeRecord(record: any) {
+    const kind = record.kind === 'in' ? 'masuk' : 'pulang';
+    if (!window.confirm(
+      `Hapus catatan absen ${kind} milik ${record.name} pada ${record.date}? Foto selfie juga akan dihapus. Tindakan ini tidak dapat dibatalkan.`,
+    )) return;
+    const result = await act('delete-record', { id: record.id }, 'Catatan dan foto absensi berhasil dihapus.');
+    if (result?.warning) setNotice(result.warning);
+    if (result) setPhoto(null);
+  }
   const table = (rows: any[]) => (
     <div className="table-wrap">
       <table>
@@ -462,6 +471,7 @@ export default function Dashboard() {
             <th>WAKTU</th>
             <th>STATUS</th>
             <th>BUKTI SELFIE</th>
+            {admin && <th>TINDAKAN</th>}
           </tr>
         </thead>
         <tbody>
@@ -492,6 +502,19 @@ export default function Dashboard() {
                   {reviews[r.review]}
                 </button>
               </td>
+              {admin && (
+                <td>
+                  <button
+                    type="button"
+                    className="text-button danger"
+                    disabled={busy}
+                    aria-label={`Hapus catatan absensi ${r.name} tanggal ${r.date}`}
+                    onClick={() => removeRecord(r)}
+                  >
+                    <X size={15} /> Hapus
+                  </button>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
