@@ -405,6 +405,16 @@ export default function Dashboard() {
   const own = todayRows.filter((r: any) => r.user_id === data.me.user_id),
     entered = own.find((r: any) => r.kind === 'in'),
     exited = own.find((r: any) => r.kind === 'out');
+  const latestCancellation = (kind: 'in' | 'out') =>
+    cancelledToday
+      .filter((r: any) => r.kind === kind)
+      .sort((a: any, b: any) => b.cancelled_at.localeCompare(a.cancelled_at))[0];
+  const cancelledIn = latestCancellation('in');
+  const cancelledOut = latestCancellation('out');
+  const awaitingIn = !entered && !!cancelledIn && !cancelledIn.retry_authorized_at;
+  const awaitingOut = !exited && !!cancelledOut && !cancelledOut.retry_authorized_at;
+  const retakeInAllowed = !entered && !!cancelledIn && !!cancelledIn.retry_authorized_at;
+  const retakeOutAllowed = !exited && !!cancelledOut && !!cancelledOut.retry_authorized_at;
   const employees = data.members.filter((m: any) => m.role === 'employee' && m.active);
   const present = new Set(
     todayRows
@@ -468,6 +478,28 @@ export default function Dashboard() {
     if (!confirm(`Izinkan ${record.name} melakukan absen ulang pada ${record.date}?`)) return;
     await act('authorize-retake', { id: record.id }, 'Izin absensi ulang diberikan.');
   }
+  function retakeAction(record: any) {
+    const sameAttendance = (r: any) =>
+      r.user_id === record.user_id && r.date === record.date && r.kind === record.kind;
+    if (data.records.some((r: any) => !r.cancelled && sameAttendance(r)))
+      return <span className="badge green">Absensi ulang tercatat</span>;
+    if (record.retry_authorized_at)
+      return <span className="badge green">Izin ulang diberikan</span>;
+    if (record.date !== data.today.date)
+      return <span className="badge">Tanggal sudah lewat</span>;
+    if (
+      data.records.some(
+        (r: any) => r.cancelled && sameAttendance(r) && r.cancelled_at > record.cancelled_at,
+      )
+    )
+      return <span className="badge">Pembatalan sebelumnya</span>;
+    return (
+      <button type="button" className="text-button" disabled={busy}
+        onClick={() => authorizeRetake(record)}>
+        Izinkan absen ulang
+      </button>
+    );
+  }
   const table = (rows: any[]) => (
     <div className="table-wrap">
       <table>
@@ -518,10 +550,7 @@ export default function Dashboard() {
               {admin && (
                 <td>
                   {r.cancelled ? (
-                    r.retry_authorized_at ? <span className="badge green">Izin ulang diberikan</span> :
-                    <button className="text-button" disabled={busy} onClick={() => authorizeRetake(r)}>
-                      Izinkan absen ulang
-                    </button>
+                    retakeAction(r)
                   ) : (
                     <button className="text-button danger" disabled={busy}
                       aria-label={`Batalkan absensi ${r.name} tanggal ${r.date}`}
@@ -802,12 +831,22 @@ export default function Dashboard() {
               </div>
             </>
           )}
-          {!admin && tab === 'overview' && cancelledToday.length > 0 && (
+          {!admin && tab === 'overview' && (awaitingIn || awaitingOut || retakeInAllowed || retakeOutAllowed) && (
             <div className="notice" role="status">
               <div>
-                <strong>Absensi hari ini dibatalkan oleh admin.</strong>
-                <p>Periksa alasan pembatalan di menu Riwayat absensi.
-                  Absensi ulang memerlukan izin admin.</p>
+                {awaitingIn || awaitingOut ? (
+                  <>
+                    <strong>Absensi hari ini dibatalkan oleh admin.</strong>
+                    <p>Periksa alasannya pada Riwayat absensi. Menunggu izin admin untuk
+                      mengulang absen {awaitingIn && awaitingOut ? 'masuk dan pulang' : awaitingIn ? 'masuk' : 'pulang'}.</p>
+                  </>
+                ) : (
+                  <>
+                    <strong>Izin absensi ulang sudah diberikan.</strong>
+                    <p>Silakan buka Absensi saya untuk mengulang absensi sesuai jadwal.
+                      Riwayat pembatalan sebelumnya tetap tersimpan.</p>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -829,13 +868,18 @@ export default function Dashboard() {
                     <small>
                       {entered
                         ? `Tercatat ${fmtTime(entered.time)}`
-                        : `Batas masuk pukul ${s.start}`}
+                         : awaitingIn
+                           ? 'Menunggu izin absen ulang dari admin'
+                           : retakeInAllowed
+                             ? 'Izin ulang diberikan · siap mengambil selfie'
+                             : `Batas masuk pukul ${s.start}`}
                     </small>
                   </div>
                   <button
                     disabled={
                       busy ||
                       !!entered ||
+                      awaitingIn ||
                       !s.days.includes(data.today.day) ||
                       (!s.allow_late && data.today.clock > s.start)
                     }
@@ -860,13 +904,20 @@ export default function Dashboard() {
                   <div>
                     <strong>Absen pulang</strong>
                     <small>
-                      {exited ? `Tercatat ${fmtTime(exited.time)}` : `Dibuka pukul ${s.end}`}
+                      {exited
+                         ? `Tercatat ${fmtTime(exited.time)}`
+                         : awaitingOut
+                           ? 'Menunggu izin absen ulang dari admin'
+                           : retakeOutAllowed
+                             ? 'Izin ulang diberikan · siap mengambil selfie'
+                             : `Dibuka pukul ${s.end}`}
                     </small>
                   </div>
                   <button
                     disabled={
                       busy ||
                       !!exited ||
+                      awaitingOut ||
                       !entered ||
                       data.today.clock < s.end ||
                       !s.days.includes(data.today.day)
