@@ -1,4 +1,5 @@
 import PasswordInput from './PasswordInput';
+import { buildAttendanceExcel } from './excel-export';
 import { useEffect, useRef, useState } from 'react';
 import {
   ArrowUpRight,
@@ -248,36 +249,27 @@ export default function Dashboard() {
       setBusy(false);
     }
   }
-  function exportCsv() {
-    const all = filtered;
-    const escape = (s: any) =>
-      '"' +
-      String(s ?? '')
-        .replace(/^[=+@-]/, "'$&")
-        .replaceAll('"', '""') +
-      '"';
-    const csv =
-      '\ufeff' +
-      [
-        ['Nama', 'Email', 'Tanggal', 'Jenis', 'Jam', 'Status', 'Tinjauan'],
-        ...all.map((r: any) => [
-          r.name,
-          r.email,
-          r.date,
-          r.kind === 'in' ? 'Masuk' : 'Pulang',
-          fmtTime(r.time),
-          r.cancelled ? 'Dibatalkan' : r.status === 'late' ? 'Terlambat' : 'Tepat waktu',
-          r.cancelled ? 'Dibatalkan: ' + r.reason : reviews[r.review],
-        ]),
-      ]
-        .map((row) => row.map(escape).join(';'))
-        .join('\r\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'laporan-absensi.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+  function exportExcel() {
+    try {
+      const bytes = buildAttendanceExcel(filtered, {
+        timezone: data.settings.timezone,
+        dateFilter: date,
+        query,
+      });
+      const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      }));
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `rekap-absensi${date ? '-' + date : ''}.xlsx`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 2000);
+      setNotice('File Excel berisi Rekap Absensi dan Ringkasan Kehadiran telah dibuat.');
+    } catch {
+      setNotice('Gagal membuat file Excel. Silakan coba kembali.');
+    }
   }
   function fmtTime(t: string) {
     return new Date(t).toLocaleTimeString('id-ID', {
@@ -1002,13 +994,13 @@ export default function Dashboard() {
                   >
                     Reset
                   </button>
-                  <button className="button primary" onClick={exportCsv}>
-                    <Download size={16} /> Ekspor CSV
+                  <button className="button primary" onClick={exportExcel}>
+                    <Download size={16} /> Ekspor Excel
                   </button>
                 </div>
                 {table(filtered)}
                 <div className="table-footer">
-                  {filtered.length} catatan ditampilkan · CSV dapat dibuka di Excel. Maksimal{' '}
+                  {filtered.length} catatan ditampilkan · File Excel mengikuti filter yang aktif. Maksimal{' '}
                   {admin ? '2.000' : '1.000'} catatan terbaru.
                 </div>
               </section>
