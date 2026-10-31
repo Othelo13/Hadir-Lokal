@@ -26,7 +26,7 @@ Aplikasi berjalan secara lokal (*local-first*), tanpa memerlukan layanan cloud u
 | Mengatur hari kerja, jam, dan zona waktu | Melihat riwayat kehadiran sendiri |
 | Membuat, mencetak, dan menghapus QR kantor | Memperbarui nama, email, dan kata sandi |
 | Meninjau bukti foto dan status kehadiran | Melihat status peninjauan absensi |
-| Memfilter rekap dan mengekspor CSV | Mengakses aplikasi melalui akun pribadi |
+| Memfilter rekap dan mengekspor Excel (.xlsx) | Mengakses aplikasi melalui akun pribadi |
 | Mengelola peran dan status anggota | — |
 
 > [!NOTE]
@@ -49,7 +49,7 @@ Alur penggunaan pertama kali:
 3. Tambahkan akun melalui **Anggota magang**, kemudian sampaikan kredensial awal kepada masing-masing anggota secara aman.
 4. Buat dan cetak QR melalui **QR kantor**, lalu tempatkan di lokasi yang terang dan mudah terlihat.
 5. Anggota membuka **Absensi saya**, mengambil foto yang menampilkan wajah serta QR, lalu mengirim absensi.
-6. Admin memeriksa bukti di rekap, memberikan hasil peninjauan, dan mengekspor laporan CSV jika diperlukan.
+6. Admin memeriksa bukti di rekap, memberikan hasil peninjauan, dan mengekspor laporan Excel (.xlsx) jika diperlukan.
 
 **Aturan awal:** hari kerja Senin–Sabtu; batas absen masuk pukul **09.00** dan absen pulang mulai **17.00** menurut zona waktu yang dipilih. Admin dapat mengubah jadwal dan mengizinkan absen masuk terlambat. Anggota hanya dapat absen pulang setelah mencatat absen masuk pada hari yang sama. Admin tidak mengisi absensi untuk dirinya sendiri.
 
@@ -178,6 +178,7 @@ npm run dev
 npm run build
 npm run format:check
 npx tsc --noEmit --noUncheckedSideEffectImports
+npm run check:local
 ```
 
 Untuk menerapkan format kode:
@@ -190,11 +191,23 @@ Perintah di atas mencakup build, pemeriksaan format, dan pemeriksaan tipe TypeSc
 
 ### Batasan saat ini
 
-- Aplikasi hanya dapat diakses melalui `127.0.0.1` pada komputer lokal; akses LAN dan hosting belum disiapkan.
+- Aplikasi secara default hanya mendengarkan pada `127.0.0.1`. Akses melalui tunnel dapat mengeksposnya ke pihak lain dan belum direkomendasikan untuk data pribadi sungguhan tanpa peninjauan keamanan terpisah.
 - QR dibaca otomatis dari foto, tetapi **wajah ditinjau manual oleh admin**. Belum ada pengenalan wajah, pemeriksaan keaktifan wajah (*liveness detection*), atau verifikasi GPS.
-- Foto dan catatan lama tetap disimpan hingga dikelola secara manual; belum ada aturan retensi otomatis.
-- Rekap mengambil maksimal **2.000 catatan terbaru** untuk admin dan **1.000 catatan terbaru** untuk anggota. Filter serta ekspor CSV hanya bekerja pada catatan yang sudah dimuat.
+- Foto untuk absensi aktif tetap tersimpan. Pembatalan absensi oleh admin menghapus foto terkait dan mempertahankan metadata pembatalan; belum ada aturan retensi otomatis untuk foto absensi aktif.
+- Rekap mengambil maksimal **2.000 catatan terbaru** untuk admin dan **1.000 catatan terbaru** untuk anggota. Filter serta ekspor Excel hanya bekerja pada catatan yang sudah dimuat.
 - Reset kata sandi dilakukan oleh admin, bukan melalui tautan email.
+
+### Pengujian integritas data lokal
+
+Setelah menghentikan server atau saat server tetap berjalan tanpa aktivitas absensi, jalankan:
+
+```bash
+npm run check:local
+```
+
+Pemeriksaan ini **hanya membaca** database dan memeriksa keberadaan file selfie; tidak mengubah catatan, foto, atau sesi. Hasil menampilkan jumlah absensi aktif, jumlah pembatalan, anomali foto, dan sidik jari ringkas data. Untuk membandingkan persistensi, jalankan sebelum dan setelah restart server tanpa melakukan absensi di antaranya. Sidik jari akan tetap sama jika data yang diperiksa tidak berubah.
+
+Cookie login memakai `HttpOnly` dan `SameSite=Strict`. Pada HTTP lokal atribut `Secure` tidak dipasang; sebelum menggunakan HTTPS melalui tunnel publik, verifikasi pengaturan cookie, host, origin, dan kontrol akses secara terpisah.
 
 ## Lisensi
 
