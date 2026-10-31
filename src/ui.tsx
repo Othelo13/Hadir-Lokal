@@ -538,9 +538,12 @@ export default function Dashboard() {
               </td>
               <td>
                 {r.cancelled ? (
-                  <span><span className="badge danger">Foto dihapus</span>
-                    <small>Alasan: {r.reason}</small>
-                  </span>
+                  <div className="cancelled-proof">
+                    <span className="badge danger">Foto dihapus</span>
+                    <small className="cancelled-proof-reason">
+                      <strong>Alasan:</strong> {r.reason}
+                    </small>
+                  </div>
                 ) : (
                   <button className="text-button" onClick={() => setPhoto(r)}>
                     <Camera size={15} /> {reviews[r.review]}
