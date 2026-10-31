@@ -528,7 +528,7 @@ export default function Dashboard() {
                       onClick={() => { setCancelTarget(r); setCancelReason(''); }}>
                       <X size={15} /> Batalkan
                     </button>
-                  )
+                  )}
                 </td>
               )}
             </tr>
