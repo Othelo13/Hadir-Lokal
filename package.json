@@ -1,0 +1,33 @@
+{
+  "name": "hadir-lokal",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "build": "node scripts/build-server.mjs && vite build",
+    "start": "node server/index.mjs",
+    "dev": "node scripts/dev.mjs",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"server/**/*.{ts,mjs}\" \"scripts/**/*.mjs\" vite.config.ts index.html tsconfig.json package.json .prettierrc.json",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"server/**/*.{ts,mjs}\" \"scripts/**/*.mjs\" vite.config.ts index.html tsconfig.json package.json .prettierrc.json"
+  },
+  "dependencies": {
+    "jpeg-js": "0.4.4",
+    "jsqr": "1.4.0",
+    "lucide-react": "^1.31.0",
+    "qrcode": "1.5.4",
+    "react": "19.2.6",
+    "react-dom": "19.2.6"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.19",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.2",
+    "prettier": "3.9.10",
+    "typescript": "5.9.3",
+    "vite": "8.0.13"
+  }
+}

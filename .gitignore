@@ -1,0 +1,39 @@
+# Dependencies and generated files
+node_modules/
+dist/
+/server/api.mjs
+*.log
+
+# Local accounts, sessions, attendance records, and photos
+data/
+selfies/
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+
+# Local secrets and certificates
+.env
+.env.*
+!.env.example
+.certs/
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+.npmrc
+
+# Backups and exported attendance reports
+backup*/
+cadangan*/
+*.bak
+*.zip
+*.7z
+*.csv
+*.xlsx
+
+# Machine-specific files
+.DS_Store
+Thumbs.db
+.vscode/
