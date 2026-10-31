@@ -6,7 +6,27 @@ import api from './api.mjs';
 const port = Number(process.env.PORT || 5197),
   dist = path.join(root, 'dist'),
   development = process.env.HADIR_DEV === '1';
+// A Quick Tunnel receives a new hostname each time it starts.
+// Only trust the exact HTTPS origin explicitly configured for this session.
+const publicOriginText = process.env.HADIR_PUBLIC_ORIGIN;
+let publicOrigin;
+if (publicOriginText) {
+  publicOrigin = new URL(publicOriginText);
+  if (
+    publicOrigin.protocol !== 'https:' ||
+    !/^[a-z0-9-]+\.trycloudflare\.com$/.test(publicOrigin.hostname) ||
+    publicOrigin.port ||
+    publicOrigin.username ||
+    publicOrigin.password ||
+    publicOrigin.pathname !== '/' ||
+    publicOrigin.search ||
+    publicOrigin.hash
+  ) {
+    throw new Error('HADIR_PUBLIC_ORIGIN harus berupa https://<subdomain>.trycloudflare.com');
+  }
+}
 const allowedHosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
+if (publicOrigin) allowedHosts.add(publicOrigin.host);
 let vite;
 if (!development && !existsSync(path.join(dist, 'index.html')))
   throw new Error('Aplikasi belum dibangun. Jalankan npm run build.');
@@ -43,7 +63,16 @@ const server = http.createServer(async (req, res) => {
       res.end('Host tidak diizinkan.');
       return;
     }
-    const url = new URL(req.url, `http://${req.headers.host}`);
+    const requestOrigin =
+      publicOrigin && req.headers.host === publicOrigin.host
+        ? publicOrigin.origin
+        : `http://${req.headers.host}`;
+    const url = new URL(req.url, requestOrigin);
+    if (url.origin !== requestOrigin) {
+      res.writeHead(403, headers);
+      res.end('Origin tidak diizinkan.');
+      return;
+    }
     if (url.pathname === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json', ...headers });
       res.end('{"status":"ok"}');
