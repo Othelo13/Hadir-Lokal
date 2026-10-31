@@ -1066,6 +1066,10 @@ footer > span:first-child {
 .mobile-menu {
   display: none;
 }
+.sidebar-backdrop,
+.sidebar-close {
+  display: none;
+}
 @media (min-width: 1500px) {
   .hero-art {
     margin-right: 100px;
@@ -1115,9 +1119,36 @@ footer > span:first-child {
   }
 }
 @media (max-width: 800px) {
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 19;
+    background: #14261a85;
+    border: 0;
+    width: 100%;
+    height: 100dvh;
+    cursor: pointer;
+  }
   .sidebar {
     transform: translateX(-100%);
     transition: transform 0.2s;
+  }
+  .sidebar-close {
+    display: grid;
+    place-items: center;
+    position: absolute;
+    top: 29px;
+    right: 14px;
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: 8px;
+    color: var(--green);
+    background: #edf2e7;
+  }
+  .sidebar-close:hover {
+    background: #dfe9d5;
   }
   .sidebar.show {
     transform: translateX(0);
