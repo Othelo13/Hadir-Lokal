@@ -399,6 +399,9 @@ export default function Dashboard() {
     s = data.settings;
   const adminCount = data.members.filter((m: any) => m.role === 'admin' && m.active).length;
   const todayRows = data.records.filter((r: any) => r.date === data.today.date && !r.cancelled);
+  const cancelledToday = data.records.filter(
+    (r: any) => r.cancelled && r.user_id === data.me.user_id && r.date === data.today.date,
+  );
   const own = todayRows.filter((r: any) => r.user_id === data.me.user_id),
     entered = own.find((r: any) => r.kind === 'in'),
     exited = own.find((r: any) => r.kind === 'out');
@@ -798,6 +801,15 @@ export default function Dashboard() {
                 )}
               </div>
             </>
+          )}
+          {!admin && tab === 'overview' && cancelledToday.length > 0 && (
+            <div className="notice" role="status">
+              <div>
+                <strong>Absensi hari ini dibatalkan oleh admin.</strong>
+                <p>Periksa alasan pembatalan di menu Riwayat absensi.
+                  Absensi ulang memerlukan izin admin.</p>
+              </div>
+            </div>
           )}
           {!admin && tab === 'attendance' && (
             <div className="two-columns">
