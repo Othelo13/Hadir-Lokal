@@ -43,6 +43,8 @@ export default function Dashboard() {
     [mobile, setMobile] = useState(false),
     [query, setQuery] = useState(''),
     [date, setDate] = useState(''),
+    [cancelTarget, setCancelTarget] = useState<any>(null),
+    [cancelReason, setCancelReason] = useState(''),
     [photo, setPhoto] = useState<any>(null),
     [qr, setQr] = useState<any>(null),
     [camera, setCamera] = useState(''),
@@ -264,8 +266,8 @@ export default function Dashboard() {
           r.date,
           r.kind === 'in' ? 'Masuk' : 'Pulang',
           fmtTime(r.time),
-          r.status === 'late' ? 'Terlambat' : 'Tepat waktu',
-          reviews[r.review],
+          r.cancelled ? 'Dibatalkan' : r.status === 'late' ? 'Terlambat' : 'Tepat waktu',
+          r.cancelled ? 'Dibatalkan: ' + r.reason : reviews[r.review],
         ]),
       ]
         .map((row) => row.map(escape).join(';'))
@@ -396,7 +398,7 @@ export default function Dashboard() {
   const admin = data.me.role === 'admin',
     s = data.settings;
   const adminCount = data.members.filter((m: any) => m.role === 'admin' && m.active).length;
-  const todayRows = data.records.filter((r: any) => r.date === data.today.date);
+  const todayRows = data.records.filter((r: any) => r.date === data.today.date && !r.cancelled);
   const own = todayRows.filter((r: any) => r.user_id === data.me.user_id),
     entered = own.find((r: any) => r.kind === 'in'),
     exited = own.find((r: any) => r.kind === 'out');
@@ -451,14 +453,17 @@ export default function Dashboard() {
     month: 'long',
     year: 'numeric',
   });
-  async function removeRecord(record: any) {
-    const kind = record.kind === 'in' ? 'masuk' : 'pulang';
-    if (!window.confirm(
-      `Hapus catatan absen ${kind} milik ${record.name} pada ${record.date}? Foto selfie juga akan dihapus. Tindakan ini tidak dapat dibatalkan.`,
-    )) return;
-    const result = await act('delete-record', { id: record.id }, 'Catatan dan foto absensi berhasil dihapus.');
+  async function cancelAttendance() {
+    if (!cancelTarget || cancelReason.trim().length < 5) return;
+    const result = await act('cancel-attendance',
+      { id: cancelTarget.id, reason: cancelReason.trim() },
+      'Absensi dibatalkan dan foto selfie dihapus.');
     if (result?.warning) setNotice(result.warning);
-    if (result) setPhoto(null);
+    if (result) { setCancelTarget(null); setCancelReason(''); setPhoto(null); }
+  }
+  async function authorizeRetake(record: any) {
+    if (!confirm(`Izinkan ${record.name} melakukan absen ulang pada ${record.date}?`)) return;
+    await act('authorize-retake', { id: record.id }, 'Izin absensi ulang diberikan.');
   }
   const table = (rows: any[]) => (
     <div className="table-wrap">
@@ -492,27 +497,35 @@ export default function Dashboard() {
               </td>
               <td className="time">{fmtTime(r.time)}</td>
               <td>
-                <span className={'badge ' + (r.status === 'late' ? 'amber' : 'green')}>
-                  {r.status === 'late' ? 'Terlambat' : 'Tepat waktu'}
+                <span className={'badge ' + (r.cancelled ? 'danger' : r.status === 'late' ? 'amber' : 'green')}>
+                  {r.cancelled ? 'Dibatalkan' : r.status === 'late' ? 'Terlambat' : 'Tepat waktu'}
                 </span>
               </td>
               <td>
-                <button className="text-button" onClick={() => setPhoto(r)}>
-                  <Camera size={15} />
-                  {reviews[r.review]}
-                </button>
+                {r.cancelled ? (
+                  <span><span className="badge danger">Foto dihapus</span>
+                    <small>Alasan: {r.reason}</small>
+                  </span>
+                ) : (
+                  <button className="text-button" onClick={() => setPhoto(r)}>
+                    <Camera size={15} /> {reviews[r.review]}
+                  </button>
+                )}
               </td>
               {admin && (
                 <td>
-                  <button
-                    type="button"
-                    className="text-button danger"
-                    disabled={busy}
-                    aria-label={`Hapus catatan absensi ${r.name} tanggal ${r.date}`}
-                    onClick={() => removeRecord(r)}
-                  >
-                    <X size={15} /> Hapus
-                  </button>
+                  {r.cancelled ? (
+                    r.retry_authorized_at ? <span className="badge green">Izin ulang diberikan</span> :
+                    <button className="text-button" disabled={busy} onClick={() => authorizeRetake(r)}>
+                      Izinkan absen ulang
+                    </button>
+                  ) : (
+                    <button className="text-button danger" disabled={busy}
+                      aria-label={`Batalkan absensi ${r.name} tanggal ${r.date}`}
+                      onClick={() => { setCancelTarget(r); setCancelReason(''); }}>
+                      <X size={15} /> Batalkan
+                    </button>
+                  )
                 </td>
               )}
             </tr>
@@ -743,7 +756,7 @@ export default function Dashboard() {
                         exited ? 'Sudah tercatat' : `Mulai ${s.end}`,
                       ],
                       [CalendarDays, 'Hari kerja', s.days.length, 'Hari setiap minggu'],
-                      [Camera, 'Catatan saya', data.records.length, 'Total absensi tersimpan'],
+                      [Camera, 'Catatan saya', data.records.filter((r: any) => !r.cancelled).length, 'Total absensi aktif'],
                     ]
                 ).map(([Icon, label, value, desc]: any, i) => (
                   <div className="stat" key={label}>
@@ -1510,6 +1523,28 @@ export default function Dashboard() {
                 <Camera size={17} /> Ambil selfie
               </button>
             )}
+          </section>
+        </div>
+      )}
+      {cancelTarget && admin && (
+        <div className="overlay">
+          <section className="modal" role="dialog" aria-modal="true" aria-label="Batalkan absensi">
+            <div className="modal-title"><h2>Batalkan Absensi</h2>
+              <button className="icon-button" disabled={busy} aria-label="Tutup"
+                onClick={() => setCancelTarget(null)}><X /></button></div>
+            <p>Batalkan absen {cancelTarget.kind === 'in' ? 'masuk' : 'pulang'} milik
+              {' '}{cancelTarget.name} tanggal {cancelTarget.date}? Foto selfie akan dihapus.
+              Metadata dan alasan pembatalan akan disimpan.</p>
+            <label>Alasan pembatalan (wajib)
+              <textarea rows={4} minLength={5} maxLength={500} required value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Tuliskan alasan pembatalan…" />
+            </label>
+            <div className="modal-actions">
+              <button className="button" disabled={busy} onClick={() => setCancelTarget(null)}>Kembali</button>
+              <button className="button danger" disabled={busy || cancelReason.trim().length < 5}
+                onClick={cancelAttendance}>Konfirmasi pembatalan</button>
+            </div>
           </section>
         </div>
       )}
