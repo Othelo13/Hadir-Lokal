@@ -1543,3 +1543,32 @@ footer > span:first-child {
   border-color: #efd5ca;
   color: #a45540;
 }
+
+/* Pembatalan absensi ditampilkan jelas tanpa menyimpan foto. */
+.badge.danger {
+  color: #9c493f;
+  background: #fff1ee;
+  border-color: #f0d2cc;
+}
+.modal textarea {
+  display: block;
+  width: 100%;
+  min-height: 104px;
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid #dce3d4;
+  border-radius: 7px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  resize: vertical;
+}
+.modal textarea:focus-visible {
+  outline: 3px solid #9daf6a;
+  outline-offset: 2px;
+}
+.modal-actions .button.danger {
+  border-color: #b55d52;
+  background: #a4493e;
+  color: white;
+}
