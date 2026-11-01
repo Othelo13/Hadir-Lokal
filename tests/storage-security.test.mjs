@@ -18,8 +18,12 @@ test('private storage cannot be placed in the public dist directory', () => {
     assert.doesNotThrow(() => assertPrivateDataDirectory(privateData, dist));
     assert.throws(() => assertPrivateDataDirectory(exposedData, dist), /dist/);
     const linked = path.join(dist, 'linked-data');
-    symlinkSync(privateData, linked, 'junction');
-    assert.doesNotThrow(() => assertPrivateDataDirectory(linked, dist));
+    try {
+      symlinkSync(privateData, linked, 'junction');
+      assert.doesNotThrow(() => assertPrivateDataDirectory(linked, dist));
+    } catch (error) {
+      if (!['EPERM', 'EACCES', 'ENOTSUP'].includes(error.code)) throw error;
+    }
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -36,8 +40,12 @@ test('static file serving refuses symlinks outside public build', () => {
     writeFileSync(privateFile, 'secret');
     assert.equal(isSafeStaticFile(dist, publicFile), true);
     const linked = path.join(dist, 'linked.txt');
-    symlinkSync(privateFile, linked, 'file');
-    assert.equal(isSafeStaticFile(dist, linked), false);
+    try {
+      symlinkSync(privateFile, linked, 'file');
+      assert.equal(isSafeStaticFile(dist, linked), false);
+    } catch (error) {
+      if (!['EPERM', 'EACCES', 'ENOTSUP'].includes(error.code)) throw error;
+    }
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
