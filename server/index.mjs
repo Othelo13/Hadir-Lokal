@@ -3,6 +3,7 @@ import path from 'node:path';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { root, sqlite } from './storage.mjs';
 import api from './api.mjs';
+import { isAcceptableSetupToken } from './auth-security.mjs';
 const port = Number(process.env.PORT || 5197);
 const host = process.env.HOST || '127.0.0.1';
 const dist = path.join(root, 'dist');
@@ -40,8 +41,8 @@ if (publicOriginText) {
 }
 if (host === '0.0.0.0' && !publicOrigin)
   throw new Error('HOST=0.0.0.0 memerlukan HADIR_PUBLIC_ORIGIN HTTPS.');
-if (publicOrigin && (!process.env.HADIR_SETUP_TOKEN || process.env.HADIR_SETUP_TOKEN.length < 32))
-  throw new Error('Akses publik memerlukan HADIR_SETUP_TOKEN acak minimal 32 karakter.');
+if (publicOrigin && !isAcceptableSetupToken(process.env.HADIR_SETUP_TOKEN))
+  throw new Error('Akses publik memerlukan HADIR_SETUP_TOKEN acak 32 byte (64 karakter heksadesimal).');
 const localHosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
 const allowedHosts = new Set(host === '0.0.0.0' ? [] : localHosts);
 if (publicOrigin) allowedHosts.add(publicOrigin.host);
