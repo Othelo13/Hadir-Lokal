@@ -3,8 +3,13 @@ import { mkdirSync, readFileSync, writeFileSync, unlinkSync, existsSync } from '
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 export const root = fileURLToPath(new URL('../', import.meta.url));
-export const dataDir = path.join(root, 'data');
-mkdirSync(dataDir, { recursive: true });
+const configuredDataDir = process.env.HADIR_DATA_DIR?.trim();
+if (process.env.HOST === '0.0.0.0' && !configuredDataDir)
+  throw new Error('Server publik memerlukan HADIR_DATA_DIR pada volume persisten.');
+if (configuredDataDir && !path.isAbsolute(configuredDataDir))
+  throw new Error('HADIR_DATA_DIR harus berupa path absolut.');
+export const dataDir = configuredDataDir ? path.resolve(configuredDataDir) : path.join(root, 'data');
+mkdirSync(dataDir, { recursive: true, mode: 0o700 });
 export const sqlite = new DatabaseSync(path.join(dataDir, 'hadir.sqlite'));
 sqlite.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;');
 sqlite.exec(readFileSync(new URL('./schema.sql', import.meta.url), 'utf8'));
