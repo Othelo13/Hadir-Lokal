@@ -1,5 +1,6 @@
 import PasswordInput from './PasswordInput';
 import { buildAttendanceExcel } from './excel-export';
+import { paginate } from './pagination';
 import { useEffect, useRef, useState } from 'react';
 import {
   ArrowUpRight,
@@ -7,6 +8,7 @@ import {
   Check,
   CheckCircle2,
   ChevronRight,
+  ChevronLeft,
   Clock3,
   Download,
   LayoutDashboard,
@@ -44,6 +46,8 @@ export default function Dashboard() {
     [mobile, setMobile] = useState(false),
     [query, setQuery] = useState(''),
     [date, setDate] = useState(''),
+    [historyPage, setHistoryPage] = useState(1),
+    [historyPageSize, setHistoryPageSize] = useState(10),
     [cancelTarget, setCancelTarget] = useState<any>(null),
     [cancelReason, setCancelReason] = useState(''),
     [photo, setPhoto] = useState<any>(null),
@@ -437,6 +441,7 @@ export default function Dashboard() {
       (!date || r.date === date) &&
       `${r.name} ${r.email}`.toLowerCase().includes(query.toLowerCase()),
   );
+  const history = paginate(filtered, historyPage, historyPageSize);
   const nav: any[] = [
     ['overview', 'Ringkasan', LayoutDashboard],
     ...(!admin ? [['attendance', 'Absensi saya', ScanFace]] : []),
@@ -981,7 +986,7 @@ export default function Dashboard() {
                       aria-label="Cari nama atau email"
                       placeholder="Cari nama atau email…"
                       value={query}
-                      onChange={(e) => setQuery(e.target.value)}
+                      onChange={(e) => { setQuery(e.target.value); setHistoryPage(1); }}
                     />
                   </div>
                   <label className="inline-label">
@@ -989,7 +994,7 @@ export default function Dashboard() {
                       type="date"
                       aria-label="Filter tanggal"
                       value={date}
-                      onChange={(e) => setDate(e.target.value)}
+                      onChange={(e) => { setDate(e.target.value); setHistoryPage(1); }}
                     />
                   </label>
                   <button
@@ -997,6 +1002,7 @@ export default function Dashboard() {
                     onClick={() => {
                       setDate('');
                       setQuery('');
+                      setHistoryPage(1);
                     }}
                   >
                     Reset
@@ -1005,10 +1011,39 @@ export default function Dashboard() {
                     <Download size={16} /> Ekspor Excel
                   </button>
                 </div>
-                {table(filtered)}
-                <div className="table-footer">
-                  {filtered.length} catatan ditampilkan · File Excel mengikuti filter yang aktif. Maksimal{' '}
-                  {admin ? '2.000' : '1.000'} catatan terbaru.
+                {table(history.rows)}
+                <div className="table-footer history-pagination">
+                  <div className="history-pagination-info">
+                    <span>Menampilkan {history.from}–{history.to} dari {history.total} catatan</span>
+                    <small>Ekspor Excel mengikuti seluruh hasil filter. Maksimal {admin ? '2.000' : '1.000'} catatan terbaru dimuat.</small>
+                  </div>
+                  <div className="history-pagination-controls">
+                    <label className="history-page-size">
+                      Baris
+                      <select
+                        aria-label="Jumlah baris per halaman"
+                        value={historyPageSize}
+                        onChange={(e) => { setHistoryPageSize(Number(e.target.value)); setHistoryPage(1); }}
+                      >
+                        <option value={10}>10</option>
+                        <option value={20}>20</option>
+                        <option value={50}>50</option>
+                      </select>
+                    </label>
+                    <nav className="history-page-nav" aria-label="Navigasi halaman rekap absensi">
+                      <button type="button" className="history-page-button" aria-label="Halaman sebelumnya"
+                        disabled={history.page <= 1}
+                        onClick={() => setHistoryPage(history.page - 1)}>
+                        <ChevronLeft size={16} />
+                      </button>
+                      <span>Halaman {history.page} dari {history.totalPages}</span>
+                      <button type="button" className="history-page-button" aria-label="Halaman berikutnya"
+                        disabled={history.page >= history.totalPages}
+                        onClick={() => setHistoryPage(history.page + 1)}>
+                        <ChevronRight size={16} />
+                      </button>
+                    </nav>
+                  </div>
                 </div>
               </section>
             </>
