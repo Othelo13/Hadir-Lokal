@@ -107,6 +107,8 @@ Repositori ini menyediakan konfigurasi **netral penyedia hosting**. Operator hos
 - HTTPS pada domain publik dengan proxy yang meneruskan `Host` asli dan lalu lintas ke `PORT` aplikasi.
 - Satu instance server untuk SQLite lokal serta volume/direktori **persisten** yang dapat ditulis untuk database dan foto (jangan simpan di filesystem ephemeral).
 - Secret management untuk token aktivasi; akses terbatas ke volume data dan backup terenkripsi.
+- Pastikan `HADIR_DATA_DIR` bukan bagian dari `dist/` (folder publik) dan tidak dapat diakses oleh web server/reverse proxy secara langsung. Aplikasi akan menolak lokasi penyimpanan yang berada di dalam `dist/`.
+- Jangan menjalankan `HADIR_DEV=1` saat `HOST=0.0.0.0`; mode pengembangan hanya diperbolehkan untuk localhost.
 - Jika hosting memerlukan database eksternal, object storage, atau beberapa instance, kode penyimpanan perlu diadaptasi dahulu. Proyek belum otomatis mendukung PostgreSQL maupun storage S3.
 
 ### Pemisahan konfigurasi lokal dan publik
