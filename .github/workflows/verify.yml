@@ -2,7 +2,7 @@ name: Security and build checks
 
 on:
   push:
-    branches: [main, feature/cloudflare-tunnel]
+    branches: [main, 'feature/**']
   pull_request:
     branches: [main]
 
