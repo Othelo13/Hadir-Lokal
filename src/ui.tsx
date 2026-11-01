@@ -1,4 +1,6 @@
 import PasswordInput from './PasswordInput';
+import { buildAttendanceExcel } from './excel-export';
+import { paginate } from './pagination';
 import { useEffect, useRef, useState } from 'react';
 import {
   ArrowUpRight,
@@ -6,6 +8,7 @@ import {
   Check,
   CheckCircle2,
   ChevronRight,
+  ChevronLeft,
   Clock3,
   Download,
   LayoutDashboard,
@@ -43,6 +46,10 @@ export default function Dashboard() {
     [mobile, setMobile] = useState(false),
     [query, setQuery] = useState(''),
     [date, setDate] = useState(''),
+    [historyPage, setHistoryPage] = useState(1),
+    [historyPageSize, setHistoryPageSize] = useState(10),
+    [cancelTarget, setCancelTarget] = useState<any>(null),
+    [cancelReason, setCancelReason] = useState(''),
     [photo, setPhoto] = useState<any>(null),
     [qr, setQr] = useState<any>(null),
     [camera, setCamera] = useState(''),
@@ -56,6 +63,14 @@ export default function Dashboard() {
     [settingsFeedback, setSettingsFeedback] = useState<{ error: boolean; message: string } | null>(
       null,
     );
+  useEffect(() => {
+    if (!mobile) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMobile(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [mobile]);
   const video = useRef<HTMLVideoElement>(null),
     stream = useRef<MediaStream | null>(null),
     cameraSession = useRef(0),
@@ -238,36 +253,27 @@ export default function Dashboard() {
       setBusy(false);
     }
   }
-  function exportCsv() {
-    const all = filtered;
-    const escape = (s: any) =>
-      '"' +
-      String(s ?? '')
-        .replace(/^[=+@-]/, "'$&")
-        .replaceAll('"', '""') +
-      '"';
-    const csv =
-      '\ufeff' +
-      [
-        ['Nama', 'Email', 'Tanggal', 'Jenis', 'Jam', 'Status', 'Tinjauan'],
-        ...all.map((r: any) => [
-          r.name,
-          r.email,
-          r.date,
-          r.kind === 'in' ? 'Masuk' : 'Pulang',
-          fmtTime(r.time),
-          r.status === 'late' ? 'Terlambat' : 'Tepat waktu',
-          reviews[r.review],
-        ]),
-      ]
-        .map((row) => row.map(escape).join(';'))
-        .join('\r\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'laporan-absensi.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+  function exportExcel() {
+    try {
+      const bytes = buildAttendanceExcel(filtered, {
+        timezone: data.settings.timezone,
+        dateFilter: date,
+        query,
+      });
+      const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      }));
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `rekap-absensi${date ? '-' + date : ''}.xlsx`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 2000);
+      setNotice('File Excel berisi Rekap Absensi dan Ringkasan Kehadiran telah dibuat.');
+    } catch {
+      setNotice('Gagal membuat file Excel. Silakan coba kembali.');
+    }
   }
   function fmtTime(t: string) {
     return new Date(t).toLocaleTimeString('id-ID', {
@@ -320,15 +326,22 @@ export default function Dashboard() {
                 password: f.get('password'),
                 name: f.get('name'),
                 timezone: f.get('timezone'),
+                setupToken: f.get('setupToken'),
               },
               '',
             );
             if (d) {
               setNotice('');
-              history.replaceState(null, '', '/');
+              window.history.replaceState(null, '', '/');
             }
           }}
         >
+          {data.setup && data.setupTokenRequired && (
+            <label>
+              Token aktivasi admin
+              <PasswordInput name="setupToken" required autoComplete="off" />
+            </label>
+          )}
           {data.setup && (
             <label>
               Nama lengkap
@@ -388,10 +401,23 @@ export default function Dashboard() {
   const admin = data.me.role === 'admin',
     s = data.settings;
   const adminCount = data.members.filter((m: any) => m.role === 'admin' && m.active).length;
-  const todayRows = data.records.filter((r: any) => r.date === data.today.date);
+  const todayRows = data.records.filter((r: any) => r.date === data.today.date && !r.cancelled);
+  const cancelledToday = data.records.filter(
+    (r: any) => r.cancelled && r.user_id === data.me.user_id && r.date === data.today.date,
+  );
   const own = todayRows.filter((r: any) => r.user_id === data.me.user_id),
     entered = own.find((r: any) => r.kind === 'in'),
     exited = own.find((r: any) => r.kind === 'out');
+  const latestCancellation = (kind: 'in' | 'out') =>
+    cancelledToday
+      .filter((r: any) => r.kind === kind)
+      .sort((a: any, b: any) => b.cancelled_at.localeCompare(a.cancelled_at))[0];
+  const cancelledIn = latestCancellation('in');
+  const cancelledOut = latestCancellation('out');
+  const awaitingIn = !entered && !!cancelledIn && !cancelledIn.retry_authorized_at;
+  const awaitingOut = !exited && !!cancelledOut && !cancelledOut.retry_authorized_at;
+  const retakeInAllowed = !entered && !!cancelledIn && !!cancelledIn.retry_authorized_at;
+  const retakeOutAllowed = !exited && !!cancelledOut && !!cancelledOut.retry_authorized_at;
   const employees = data.members.filter((m: any) => m.role === 'employee' && m.active);
   const present = new Set(
     todayRows
@@ -415,6 +441,7 @@ export default function Dashboard() {
       (!date || r.date === date) &&
       `${r.name} ${r.email}`.toLowerCase().includes(query.toLowerCase()),
   );
+  const paginatedHistory = paginate(filtered, historyPage, historyPageSize);
   const nav: any[] = [
     ['overview', 'Ringkasan', LayoutDashboard],
     ...(!admin ? [['attendance', 'Absensi saya', ScanFace]] : []),
@@ -443,6 +470,40 @@ export default function Dashboard() {
     month: 'long',
     year: 'numeric',
   });
+  async function cancelAttendance() {
+    if (!cancelTarget || cancelReason.trim().length < 5) return;
+    const result = await act('cancel-attendance',
+      { id: cancelTarget.id, reason: cancelReason.trim() },
+      'Absensi dibatalkan dan foto selfie dihapus.');
+    if (result?.warning) setNotice(result.warning);
+    if (result) { setCancelTarget(null); setCancelReason(''); setPhoto(null); }
+  }
+  async function authorizeRetake(record: any) {
+    if (!confirm(`Izinkan ${record.name} melakukan absen ulang pada ${record.date}?`)) return;
+    await act('authorize-retake', { id: record.id }, 'Izin absensi ulang diberikan.');
+  }
+  function retakeAction(record: any) {
+    const sameAttendance = (r: any) =>
+      r.user_id === record.user_id && r.date === record.date && r.kind === record.kind;
+    if (data.records.some((r: any) => !r.cancelled && sameAttendance(r)))
+      return <span className="badge green">Absensi ulang tercatat</span>;
+    if (record.retry_authorized_at)
+      return <span className="badge green">Izin ulang diberikan</span>;
+    if (record.date !== data.today.date)
+      return <span className="badge">Tanggal sudah lewat</span>;
+    if (
+      data.records.some(
+        (r: any) => r.cancelled && sameAttendance(r) && r.cancelled_at > record.cancelled_at,
+      )
+    )
+      return <span className="badge">Pembatalan sebelumnya</span>;
+    return (
+      <button type="button" className="text-button" disabled={busy}
+        onClick={() => authorizeRetake(record)}>
+        Izinkan absen ulang
+      </button>
+    );
+  }
   const table = (rows: any[]) => (
     <div className="table-wrap">
       <table>
@@ -454,6 +515,7 @@ export default function Dashboard() {
             <th>WAKTU</th>
             <th>STATUS</th>
             <th>BUKTI SELFIE</th>
+            {admin && <th>TINDAKAN</th>}
           </tr>
         </thead>
         <tbody>
@@ -474,16 +536,37 @@ export default function Dashboard() {
               </td>
               <td className="time">{fmtTime(r.time)}</td>
               <td>
-                <span className={'badge ' + (r.status === 'late' ? 'amber' : 'green')}>
-                  {r.status === 'late' ? 'Terlambat' : 'Tepat waktu'}
+                <span className={'badge ' + (r.cancelled ? 'danger' : r.status === 'late' ? 'amber' : 'green')}>
+                  {r.cancelled ? 'Dibatalkan' : r.status === 'late' ? 'Terlambat' : 'Tepat waktu'}
                 </span>
               </td>
               <td>
-                <button className="text-button" onClick={() => setPhoto(r)}>
-                  <Camera size={15} />
-                  {reviews[r.review]}
-                </button>
+                {r.cancelled ? (
+                  <div className="cancelled-proof">
+                    <span className="badge danger">Foto dihapus</span>
+                    <small className="cancelled-proof-reason">
+                      <strong>Alasan:</strong> {r.reason}
+                    </small>
+                  </div>
+                ) : (
+                  <button className="text-button" onClick={() => setPhoto(r)}>
+                    <Camera size={15} /> {reviews[r.review]}
+                  </button>
+                )}
               </td>
+              {admin && (
+                <td>
+                  {r.cancelled ? (
+                    retakeAction(r)
+                  ) : (
+                    <button className="text-button danger" disabled={busy}
+                      aria-label={`Batalkan absensi ${r.name} tanggal ${r.date}`}
+                      onClick={() => { setCancelTarget(r); setCancelReason(''); }}>
+                      <X size={15} /> Batalkan
+                    </button>
+                  )}
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
@@ -499,10 +582,26 @@ export default function Dashboard() {
   );
   return (
     <div className="app">
-      <aside className={mobile ? 'sidebar show' : 'sidebar'}>
+      {mobile && (
+        <button
+          type="button"
+          className="sidebar-backdrop"
+          aria-label="Tutup menu navigasi"
+          onClick={() => setMobile(false)}
+        />
+      )}
+      <aside className={mobile ? 'sidebar show' : 'sidebar'} id="sidebar-navigation">
         <a className="brand" href="/" aria-label="Hadir beranda">
           <span>h.</span>hadir<span className="brand-dot">®</span>
         </a>
+        <button
+          type="button"
+          className="sidebar-close"
+          aria-label="Tutup menu"
+          onClick={() => setMobile(false)}
+        >
+          <X size={20} />
+        </button>
         <nav>
           {nav.map(([id, label, Icon]: any) => (
             <button
@@ -562,6 +661,7 @@ export default function Dashboard() {
             className="icon-button mobile-menu"
             aria-label={mobile ? 'Tutup menu' : 'Buka menu'}
             aria-expanded={mobile}
+            aria-controls="sidebar-navigation"
             onClick={() => setMobile(!mobile)}
           >
             <Menu />
@@ -695,7 +795,7 @@ export default function Dashboard() {
                         exited ? 'Sudah tercatat' : `Mulai ${s.end}`,
                       ],
                       [CalendarDays, 'Hari kerja', s.days.length, 'Hari setiap minggu'],
-                      [Camera, 'Catatan saya', data.records.length, 'Total absensi tersimpan'],
+                      [Camera, 'Catatan saya', data.records.filter((r: any) => !r.cancelled).length, 'Total absensi aktif'],
                     ]
                 ).map(([Icon, label, value, desc]: any, i) => (
                   <div className="stat" key={label}>
@@ -738,6 +838,25 @@ export default function Dashboard() {
               </div>
             </>
           )}
+          {!admin && tab === 'overview' && (awaitingIn || awaitingOut || retakeInAllowed || retakeOutAllowed) && (
+            <div className="notice" role="status">
+              <div>
+                {awaitingIn || awaitingOut ? (
+                  <>
+                    <strong>Absensi hari ini dibatalkan oleh admin.</strong>
+                    <p>Periksa alasannya pada Riwayat absensi. Menunggu izin admin untuk
+                      mengulang absen {awaitingIn && awaitingOut ? 'masuk dan pulang' : awaitingIn ? 'masuk' : 'pulang'}.</p>
+                  </>
+                ) : (
+                  <>
+                    <strong>Izin absensi ulang sudah diberikan.</strong>
+                    <p>Silakan buka Absensi saya untuk mengulang absensi sesuai jadwal.
+                      Riwayat pembatalan sebelumnya tetap tersimpan.</p>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
           {!admin && tab === 'attendance' && (
             <div className="two-columns">
               <section className="panel padded">
@@ -756,13 +875,18 @@ export default function Dashboard() {
                     <small>
                       {entered
                         ? `Tercatat ${fmtTime(entered.time)}`
-                        : `Batas masuk pukul ${s.start}`}
+                         : awaitingIn
+                           ? 'Menunggu izin absen ulang dari admin'
+                           : retakeInAllowed
+                             ? 'Izin ulang diberikan · siap mengambil selfie'
+                             : `Batas masuk pukul ${s.start}`}
                     </small>
                   </div>
                   <button
                     disabled={
                       busy ||
                       !!entered ||
+                      awaitingIn ||
                       !s.days.includes(data.today.day) ||
                       (!s.allow_late && data.today.clock > s.start)
                     }
@@ -787,13 +911,20 @@ export default function Dashboard() {
                   <div>
                     <strong>Absen pulang</strong>
                     <small>
-                      {exited ? `Tercatat ${fmtTime(exited.time)}` : `Dibuka pukul ${s.end}`}
+                      {exited
+                         ? `Tercatat ${fmtTime(exited.time)}`
+                         : awaitingOut
+                           ? 'Menunggu izin absen ulang dari admin'
+                           : retakeOutAllowed
+                             ? 'Izin ulang diberikan · siap mengambil selfie'
+                             : `Dibuka pukul ${s.end}`}
                     </small>
                   </div>
                   <button
                     disabled={
                       busy ||
                       !!exited ||
+                      awaitingOut ||
                       !entered ||
                       data.today.clock < s.end ||
                       !s.days.includes(data.today.day)
@@ -855,7 +986,7 @@ export default function Dashboard() {
                       aria-label="Cari nama atau email"
                       placeholder="Cari nama atau email…"
                       value={query}
-                      onChange={(e) => setQuery(e.target.value)}
+                      onChange={(e) => { setQuery(e.target.value); setHistoryPage(1); }}
                     />
                   </div>
                   <label className="inline-label">
@@ -863,7 +994,7 @@ export default function Dashboard() {
                       type="date"
                       aria-label="Filter tanggal"
                       value={date}
-                      onChange={(e) => setDate(e.target.value)}
+                      onChange={(e) => { setDate(e.target.value); setHistoryPage(1); }}
                     />
                   </label>
                   <button
@@ -871,18 +1002,48 @@ export default function Dashboard() {
                     onClick={() => {
                       setDate('');
                       setQuery('');
+                      setHistoryPage(1);
                     }}
                   >
                     Reset
                   </button>
-                  <button className="button primary" onClick={exportCsv}>
-                    <Download size={16} /> Ekspor CSV
+                  <button className="button primary" onClick={exportExcel}>
+                    <Download size={16} /> Ekspor Excel
                   </button>
                 </div>
-                {table(filtered)}
-                <div className="table-footer">
-                  {filtered.length} catatan ditampilkan · CSV dapat dibuka di Excel. Maksimal{' '}
-                  {admin ? '2.000' : '1.000'} catatan terbaru.
+                {table(paginatedHistory.rows)}
+                <div className="table-footer history-pagination">
+                  <div className="history-pagination-info">
+                    <span>Menampilkan {paginatedHistory.from}–{paginatedHistory.to} dari {paginatedHistory.total} catatan</span>
+                    <small>Ekspor Excel mengikuti seluruh hasil filter. Maksimal {admin ? '2.000' : '1.000'} catatan terbaru dimuat.</small>
+                  </div>
+                  <div className="history-pagination-controls">
+                    <label className="history-page-size">
+                      Baris
+                      <select
+                        aria-label="Jumlah baris per halaman"
+                        value={historyPageSize}
+                        onChange={(e) => { setHistoryPageSize(Number(e.target.value)); setHistoryPage(1); }}
+                      >
+                        <option value={10}>10</option>
+                        <option value={20}>20</option>
+                        <option value={50}>50</option>
+                      </select>
+                    </label>
+                    <nav className="history-page-nav" aria-label="Navigasi halaman rekap absensi">
+                      <button type="button" className="history-page-button" aria-label="Halaman sebelumnya"
+                        disabled={paginatedHistory.page <= 1}
+                        onClick={() => setHistoryPage(paginatedHistory.page - 1)}>
+                        <ChevronLeft size={16} />
+                      </button>
+                      <span>Halaman {paginatedHistory.page} dari {paginatedHistory.totalPages}</span>
+                      <button type="button" className="history-page-button" aria-label="Halaman berikutnya"
+                        disabled={paginatedHistory.page >= paginatedHistory.totalPages}
+                        onClick={() => setHistoryPage(paginatedHistory.page + 1)}>
+                        <ChevronRight size={16} />
+                      </button>
+                    </nav>
+                  </div>
                 </div>
               </section>
             </>
@@ -1462,6 +1623,28 @@ export default function Dashboard() {
                 <Camera size={17} /> Ambil selfie
               </button>
             )}
+          </section>
+        </div>
+      )}
+      {cancelTarget && admin && (
+        <div className="overlay">
+          <section className="modal" role="dialog" aria-modal="true" aria-label="Batalkan absensi">
+            <div className="modal-title"><h2>Batalkan Absensi</h2>
+              <button className="icon-button" disabled={busy} aria-label="Tutup"
+                onClick={() => setCancelTarget(null)}><X /></button></div>
+            <p>Batalkan absen {cancelTarget.kind === 'in' ? 'masuk' : 'pulang'} milik
+              {' '}{cancelTarget.name} tanggal {cancelTarget.date}? Foto selfie akan dihapus.
+              Metadata dan alasan pembatalan akan disimpan.</p>
+            <label>Alasan pembatalan (wajib)
+              <textarea rows={4} minLength={5} maxLength={500} required value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Tuliskan alasan pembatalan…" />
+            </label>
+            <div className="modal-actions">
+              <button className="button" disabled={busy} onClick={() => setCancelTarget(null)}>Kembali</button>
+              <button className="button danger" disabled={busy || cancelReason.trim().length < 5}
+                onClick={cancelAttendance}>Konfirmasi pembatalan</button>
+            </div>
           </section>
         </div>
       )}

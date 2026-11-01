@@ -7,7 +7,11 @@ import {
 } from 'node:crypto';
 import { promisify } from 'node:util';
 import { sqlite } from './storage.mjs';
+import { createLoginLimiter, matchesSetupToken } from './auth-security.mjs';
 const scrypt = promisify(scryptCallback);
+// The request URL is built using the trusted HTTPS origin in server/index.mjs.
+const sessionCookieOptions = (req) =>
+  req.url.startsWith('https://') ? '; Secure' : '';
 const respond = (v, status = 200, headers = {}) =>
   Response.json(v, { status, headers: { 'Cache-Control': 'no-store', ...headers } });
 function fail(message, status = 400) {
@@ -55,14 +59,14 @@ function credentials(body) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) fail('Email tidak valid.');
   return { email, name };
 }
-function beginSession(user) {
+function beginSession(user, req) {
   const value = randomBytes(32).toString('hex');
   sqlite.prepare('DELETE FROM sessions WHERE expires<?').run(Date.now());
   sqlite
     .prepare('INSERT INTO sessions VALUES (?,?,?)')
     .run(digest(value), user.user_id, Date.now() + 12 * 60 * 60 * 1000);
   return respond({ ok: true }, 200, {
-    'Set-Cookie': `hadir_session=${value}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200`,
+    'Set-Cookie': `hadir_session=${value}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200${sessionCookieOptions(req)}`,
   });
 }
 function requireAdmin(req) {
@@ -70,6 +74,7 @@ function requireAdmin(req) {
   if (!actor || actor.role !== 'admin') fail('Hanya admin yang dapat melakukan tindakan ini.', 403);
   return actor;
 }
+const loginLimiter = createLoginLimiter();
 const attempts = new Map();
 function limit(key) {
   const now = Date.now(),
@@ -82,7 +87,8 @@ function limit(key) {
 }
 export async function authAction(req, action, body) {
   const empty = sqlite.prepare('SELECT COUNT(*) n FROM members').get().n === 0;
-  if (action === 'state' && empty) return respond({ setup: true });
+  if (action === 'state' && empty)
+    return respond({ setup: true, setupTokenRequired: !!process.env.HADIR_SETUP_TOKEN });
   if (action === 'state' && !currentUser(req)) return respond({ login: true });
   if (
     [
@@ -99,6 +105,9 @@ export async function authAction(req, action, body) {
     fail('Metode tidak didukung.', 405);
   if (action === 'setup') {
     if (!empty) fail('Admin pertama sudah dibuat.', 409);
+    const expectedToken = process.env.HADIR_SETUP_TOKEN;
+    if (expectedToken && !matchesSetupToken(body.setupToken, expectedToken))
+      fail('Token aktivasi admin tidak valid.', 403);
     const { email, name } = credentials(body);
     if (!name || name.length > 80) fail('Isi nama lengkap, maksimal 80 karakter.');
     if (!zones.includes(body.timezone)) fail('Pilih zona waktu kantor.');
@@ -119,26 +128,26 @@ export async function authAction(req, action, body) {
       sqlite.exec('ROLLBACK');
       throw e;
     }
-    return beginSession({ user_id: id });
+    return beginSession({ user_id: id }, req);
   }
   if (action === 'login') {
-    limit('login');
-    const email = String(body.email || '')
-      .trim()
-      .toLowerCase();
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase().slice(0, 254) : '';
+    if (loginLimiter.isBlocked(email)) fail('Terlalu banyak percobaan untuk akun ini. Coba lagi dalam 15 menit.', 429);
     const user = sqlite.prepare('SELECT * FROM members WHERE email=? AND active=1').get(email);
     // Perform a hash even when the address is unknown.
     const dummy = 'scrypt:00000000000000000000000000000000:' + '00'.repeat(64);
-    if (!(await verify(body.password, user?.password_hash || dummy)) || !user)
+    if (!(await verify(body.password, user?.password_hash || dummy)) || !user) {
+      loginLimiter.recordFailure(email);
       fail('Email atau kata sandi tidak sesuai.', 401);
-    attempts.delete('login');
-    return beginSession(user);
+    }
+    loginLimiter.recordSuccess(email);
+    return beginSession(user, req);
   }
   if (action === 'logout') {
     const t = token(req);
     if (t) sqlite.prepare('DELETE FROM sessions WHERE token_hash=?').run(digest(t));
     return respond({ ok: true }, 200, {
-      'Set-Cookie': 'hadir_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0',
+      'Set-Cookie': `hadir_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${sessionCookieOptions(req)}`,
     });
   }
   if (action === 'member-create') {
@@ -206,7 +215,7 @@ export async function authAction(req, action, body) {
       throw e;
     }
     attempts.delete('password:' + me.user_id);
-    return beginSession(me);
+    return beginSession(me, req);
   }
   if (action === 'password-reset') {
     const actor = requireAdmin(req),

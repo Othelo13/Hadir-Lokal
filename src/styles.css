@@ -130,12 +130,12 @@ small {
   letter-spacing: 0;
   margin-left: -5px;
 }
-nav {
+.sidebar > nav {
   display: flex;
   flex-direction: column;
   gap: 5px;
 }
-nav button {
+.sidebar > nav button {
   border: 0;
   background: none;
   display: flex;
@@ -148,12 +148,12 @@ nav button {
   font-size: 12px;
   font-weight: 500;
 }
-nav button.active {
+.sidebar > nav button.active {
   background: #edf2e7;
   color: var(--green);
   font-weight: 700;
 }
-nav button:hover {
+.sidebar > nav button:hover {
   background: #f3f5ed;
 }
 .profile {
@@ -981,6 +981,8 @@ footer > span:first-child {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  /* Tampilkan kamera depan seperti cermin; data foto asli tetap tanpa pembalikan. */
+  transform: scaleX(-1);
 }
 .camera-view > span {
   position: absolute;
@@ -1066,6 +1068,10 @@ footer > span:first-child {
 .mobile-menu {
   display: none;
 }
+.sidebar-backdrop,
+.sidebar-close {
+  display: none;
+}
 @media (min-width: 1500px) {
   .hero-art {
     margin-right: 100px;
@@ -1115,9 +1121,45 @@ footer > span:first-child {
   }
 }
 @media (max-width: 800px) {
+  /* Bingkai kamera lebih tinggi pada layar mobile agar wajah dan QR lebih mudah diposisikan. */
+  .camera-modal .camera-view {
+    aspect-ratio: 3 / 4;
+    max-height: min(65dvh, 800px);
+  }
+  .camera-modal .camera-view video,
+  .camera-modal .camera-view img {
+    object-fit: cover;
+  }
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 19;
+    background: #14261a85;
+    border: 0;
+    width: 100%;
+    height: 100dvh;
+    cursor: pointer;
+  }
   .sidebar {
     transform: translateX(-100%);
     transition: transform 0.2s;
+  }
+  .sidebar-close {
+    display: grid;
+    place-items: center;
+    position: absolute;
+    top: 29px;
+    right: 14px;
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: 8px;
+    color: var(--green);
+    background: #edf2e7;
+  }
+  .sidebar-close:hover {
+    background: #dfe9d5;
   }
   .sidebar.show {
     transform: translateX(0);
@@ -1500,4 +1542,117 @@ footer > span:first-child {
   background: #fff3ef;
   border-color: #efd5ca;
   color: #a45540;
+}
+
+/* Bukti selfie yang dibatalkan: badge dan alasan sejajar, tetap terbaca pada layar kecil. */
+.cancelled-proof {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  min-width: 0;
+}
+.cancelled-proof-reason {
+  display: block;
+  max-width: 280px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #667365;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.cancelled-proof-reason strong {
+  font-weight: 600;
+  color: #4e614c;
+}
+/* Pembatalan absensi ditampilkan jelas tanpa menyimpan foto. */
+.badge.danger {
+  color: #9c493f;
+  background: #fff1ee;
+  border-color: #f0d2cc;
+}
+.modal textarea {
+  display: block;
+  width: 100%;
+  min-height: 104px;
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid #dce3d4;
+  border-radius: 7px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  resize: vertical;
+}
+.modal textarea:focus-visible {
+  outline: 3px solid #9daf6a;
+  outline-offset: 2px;
+}
+.modal-actions .button.danger {
+  border-color: #b55d52;
+  background: #a4493e;
+  color: white;
+}
+
+/* Rekap Absensi: pagination stays compact on desktop and wraps on mobile. */
+.history-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.history-pagination-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.history-pagination-info small {
+  font-size: 10px;
+}
+.history-pagination-controls,
+.history-page-nav,
+.history-page-size {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.history-page-size {
+  flex-direction: row;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.history-page-size select {
+  padding: 8px 26px 8px 10px;
+  font-size: 11px;
+}
+.history-page-nav {
+  flex-direction: row;
+  font-size: 11px;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.history-page-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--green);
+}
+.history-page-button:hover:not(:disabled) {
+  background: var(--bg);
+}
+@media (max-width: 600px) {
+  .history-pagination {
+    align-items: stretch;
+  }
+  .history-pagination-controls {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
 }

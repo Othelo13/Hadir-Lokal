@@ -1,5 +1,6 @@
 import { db, bucket, sqlite } from './storage.mjs';
 import { currentUser, authAction } from './auth.mjs';
+import { apiRateLimiter } from './api-rate-limit.mjs';
 import jsQR from 'jsqr';
 import jpeg from 'jpeg-js';
 import QRCode from 'qrcode';
@@ -49,6 +50,8 @@ async function handle(req: Request) {
   const email = me.email,
     user = { userId: me.user_id };
   const admin = me.role === 'admin';
+  if (!apiRateLimiter.allow(me.user_id, action))
+    fail('Terlalu banyak permintaan. Coba lagi beberapa menit.', 429);
   const settings = await db.prepare('SELECT * FROM config WHERE id=1').first<any>();
   const today = local(new Date(), settings.timezone);
   if (action === 'state') {
@@ -58,6 +61,14 @@ async function handle(req: Request) {
         : 'SELECT * FROM records WHERE user_id=? ORDER BY time DESC LIMIT 1000',
     );
     const history = await (admin ? rows : rows.bind(user.userId)).all();
+    const cancellations = sqlite.prepare(
+      admin
+        ? 'SELECT id,user_id,email,name,date,kind,time,reason,cancelled_by,cancelled_at,retry_authorized_at FROM attendance_cancellations ORDER BY time DESC LIMIT 2000'
+        : 'SELECT id,user_id,email,name,date,kind,time,reason,cancelled_by,cancelled_at,retry_authorized_at FROM attendance_cancellations WHERE user_id=? ORDER BY time DESC LIMIT 1000'
+    ).all(...(admin ? [] : [user.userId]));
+    const allRecords = [...history.results, ...cancellations.map((item: any) => ({
+      ...item, cancelled: true, review: 'cancelled', photo: null, status: 'cancelled'
+    }))].sort((a: any,b: any) => b.time.localeCompare(a.time));
     const people = admin
       ? (
           await db
@@ -72,7 +83,7 @@ async function handle(req: Request) {
       me: { email: me.email, name: me.name, role: me.role, active: me.active, user_id: me.user_id },
       settings: { ...settings, days: JSON.parse(settings.days) },
       today,
-      records: history.results,
+      records: allRecords,
       members: people,
       codes: qr,
     });
@@ -127,6 +138,11 @@ async function handle(req: Request) {
         .first()
     )
       fail('Absensi ini sudah tercatat hari ini.');
+    const latestCancellation = sqlite.prepare(
+      'SELECT retry_authorized_at FROM attendance_cancellations WHERE user_id=? AND date=? AND kind=? ORDER BY cancelled_at DESC LIMIT 1'
+    ).get(user.userId, today.date, body.kind);
+    if (latestCancellation && !latestCancellation.retry_authorized_at)
+      fail('Absensi sebelumnya dibatalkan. Hubungi admin untuk izin absensi ulang.', 403);
     const challenge = await db
       .prepare('DELETE FROM challenges WHERE id=? AND user_id=? AND expires>? RETURNING id')
       .bind(body.challenge, user.userId, Date.now())
@@ -280,9 +296,58 @@ async function handle(req: Request) {
       }),
     });
   }
+  if (action === 'cancel-attendance') {
+    if (typeof body.id !== 'string' || !/^[0-9a-f-]{36}$/i.test(body.id))
+      fail('Pilih catatan absensi yang valid.');
+    const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
+    if (reason.length < 5 || reason.length > 500)
+      fail('Alasan pembatalan harus berisi 5–500 karakter.');
+    let row: any;
+    sqlite.exec('BEGIN IMMEDIATE');
+    try {
+      row = sqlite.prepare('SELECT * FROM records WHERE id=?').get(body.id);
+      if (!row) fail('Catatan absensi tidak ditemukan atau sudah dibatalkan.', 404);
+      if (row.kind === 'in' && sqlite.prepare(
+        "SELECT id FROM records WHERE user_id=? AND date=? AND kind='out'"
+      ).get(row.user_id,row.date))
+        fail('Batalkan absensi pulang pada tanggal yang sama terlebih dahulu.', 409);
+      sqlite.prepare(
+        'INSERT INTO attendance_cancellations (id,user_id,email,name,date,kind,time,reason,cancelled_by,cancelled_at,photo_cleanup_key) VALUES (?,?,?,?,?,?,?,?,?,?,?)'
+      ).run(row.id,row.user_id,row.email,row.name,row.date,row.kind,row.time,reason,user.userId,new Date().toISOString(),row.photo);
+      sqlite.prepare('DELETE FROM records WHERE id=?').run(row.id);
+      sqlite.exec('COMMIT');
+    } catch(e) {
+      sqlite.exec('ROLLBACK');
+      throw e;
+    }
+    try {
+      await bucket.delete(row.photo);
+      sqlite.prepare('UPDATE attendance_cancellations SET photo_cleanup_key=NULL WHERE id=?').run(row.id);
+      return json({ok:true});
+    } catch {
+      return json({ok:true,warning:'Pembatalan tercatat, tetapi file selfie belum berhasil dibersihkan. Periksa penyimpanan lokal.'});
+    }
+  }
+  if (action === 'authorize-retake') {
+    if (typeof body.id !== 'string' || !/^[0-9a-f-]{36}$/i.test(body.id))
+      fail('Pilih catatan pembatalan yang valid.');
+    const row: any = sqlite.prepare('SELECT * FROM attendance_cancellations WHERE id=?').get(body.id);
+    if (!row) fail('Catatan pembatalan tidak ditemukan.',404);
+    if (row.date !== today.date) fail('Izin absensi ulang hanya tersedia pada hari yang sama.',409);
+    if (sqlite.prepare('SELECT id FROM records WHERE user_id=? AND date=? AND kind=?')
+      .get(row.user_id,row.date,row.kind)) fail('Absensi aktif sudah tercatat.',409);
+    const latest: any = sqlite.prepare(
+      'SELECT id FROM attendance_cancellations WHERE user_id=? AND date=? AND kind=? ORDER BY cancelled_at DESC LIMIT 1'
+    ).get(row.user_id,row.date,row.kind);
+    if (latest.id !== row.id) fail('Berikan izin melalui pembatalan terbaru.',409);
+    sqlite.prepare('UPDATE attendance_cancellations SET retry_authorized_at=?,retry_authorized_by=? WHERE id=?')
+      .run(new Date().toISOString(),user.userId,row.id);
+    return json({ok:true});
+  }
   if (action === 'review') {
     if (!['approved', 'rejected'].includes(body.review)) fail('Status tidak valid.');
-    await db.prepare('UPDATE records SET review=? WHERE id=?').bind(body.review, body.id).run();
+    const result = await db.prepare('UPDATE records SET review=? WHERE id=?').bind(body.review, body.id).run();
+    if (!result.changes) fail('Catatan absensi tidak ditemukan.',404);
     return json({ ok: true });
   }
   fail('Tindakan tidak dikenal.', 404);

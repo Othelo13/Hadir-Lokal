@@ -16,7 +16,7 @@ Kelola anggota, jadwal, dan bukti kehadiran dalam satu aplikasi web — dengan d
 
 **Hadir** membantu pengelolaan absensi peserta magang melalui foto yang memperlihatkan **wajah peserta dan QR kantor dalam satu gambar**. Aplikasi membaca QR dari foto secara otomatis, menyimpan catatan kehadiran, lalu menyediakan bukti foto untuk ditinjau admin.
 
-Aplikasi berjalan secara lokal (*local-first*), tanpa memerlukan layanan cloud untuk server dan penyimpanan data. **Saat ini, aplikasi hanya dapat diakses dari komputer yang menjalankan server**, bukan dari perangkat lain melalui jaringan.
+Aplikasi berjalan secara lokal (*local-first*), tanpa memerlukan layanan cloud untuk server dan penyimpanan data. **Secara default** aplikasi hanya dapat diakses dari komputer yang menjalankan server. Dukungan konfigurasi untuk hosting HTTPS tersedia, tetapi deployment dan pengujian publik tetap tanggung jawab operator hosting.
 
 ### Fitur utama
 
@@ -26,7 +26,7 @@ Aplikasi berjalan secara lokal (*local-first*), tanpa memerlukan layanan cloud u
 | Mengatur hari kerja, jam, dan zona waktu | Melihat riwayat kehadiran sendiri |
 | Membuat, mencetak, dan menghapus QR kantor | Memperbarui nama, email, dan kata sandi |
 | Meninjau bukti foto dan status kehadiran | Melihat status peninjauan absensi |
-| Memfilter rekap dan mengekspor CSV | Mengakses aplikasi melalui akun pribadi |
+| Memfilter rekap dan mengekspor Excel (.xlsx) | Mengakses aplikasi melalui akun pribadi |
 | Mengelola peran dan status anggota | — |
 
 > [!NOTE]
@@ -49,7 +49,7 @@ Alur penggunaan pertama kali:
 3. Tambahkan akun melalui **Anggota magang**, kemudian sampaikan kredensial awal kepada masing-masing anggota secara aman.
 4. Buat dan cetak QR melalui **QR kantor**, lalu tempatkan di lokasi yang terang dan mudah terlihat.
 5. Anggota membuka **Absensi saya**, mengambil foto yang menampilkan wajah serta QR, lalu mengirim absensi.
-6. Admin memeriksa bukti di rekap, memberikan hasil peninjauan, dan mengekspor laporan CSV jika diperlukan.
+6. Admin memeriksa bukti di rekap, memberikan hasil peninjauan, dan mengekspor laporan Excel (.xlsx) jika diperlukan.
 
 **Aturan awal:** hari kerja Senin–Sabtu; batas absen masuk pukul **09.00** dan absen pulang mulai **17.00** menurut zona waktu yang dipilih. Admin dapat mengubah jadwal dan mengizinkan absen masuk terlambat. Anggota hanya dapat absen pulang setelah mencatat absen masuk pada hari yang sama. Admin tidak mengisi absensi untuk dirinya sendiri.
 
@@ -96,6 +96,69 @@ Mode ini tetap menjalankan **server lokal**, bukan menerbitkan aplikasi ke inter
 
 > [!TIP]
 > Di Windows PowerShell, gunakan `npm.cmd` sebagai pengganti `npm` apabila eksekusi skrip diblokir. Jika port `5197` sudah digunakan, tutup proses Hadir yang berjalan sebelumnya. Server mendengarkan pada `127.0.0.1`, sehingga HP atau komputer lain belum dapat mengaksesnya.
+
+## Serah-terima untuk hosting publik
+
+Repositori ini menyediakan konfigurasi **netral penyedia hosting**. Operator hosting bertanggung jawab memilih layanan, domain, sertifikat TLS, volume persisten, backup, serta pengawasan server. **Jangan mengunggah folder `data/` lokal ke GitHub**; folder itu memuat identitas, hash kata sandi, dan foto selfie.
+
+### Persyaratan hosting
+
+- Runtime **Node.js 24+** yang dapat menjalankan proses server Node terus-menerus; bukan hosting statis saja.
+- HTTPS pada domain publik dengan proxy yang meneruskan `Host` asli dan lalu lintas ke `PORT` aplikasi.
+- Satu instance server untuk SQLite lokal serta volume/direktori **persisten** yang dapat ditulis untuk database dan foto (jangan simpan di filesystem ephemeral).
+- Secret management untuk token aktivasi; akses terbatas ke volume data dan backup terenkripsi.
+- Pastikan `HADIR_DATA_DIR` bukan bagian dari `dist/` (folder publik) dan tidak dapat diakses oleh web server/reverse proxy secara langsung. Aplikasi akan menolak lokasi penyimpanan yang berada di dalam `dist/`.
+- Jangan menjalankan `HADIR_DEV=1` saat `HOST=0.0.0.0`; mode pengembangan hanya diperbolehkan untuk localhost.
+- Jika hosting memerlukan database eksternal, object storage, atau beberapa instance, kode penyimpanan perlu diadaptasi dahulu. Proyek belum otomatis mendukung PostgreSQL maupun storage S3.
+
+### Pemisahan konfigurasi lokal dan publik
+
+Untuk menjalankan aplikasi di laptop, gunakan `npm start` dengan default `HOST=127.0.0.1`. Jika variabel `HADIR_PUBLIC_ORIGIN` dari percobaan tunnel lama masih ada, server **mengabaikannya dalam mode lokal** dan menampilkan peringatan. Tidak perlu mengaktifkan Cloudflare Tunnel atau VS Code Port Forwarding.
+
+Ketika hosting menggunakan `HOST=0.0.0.0`, aplikasi justru **wajib** memiliki `HADIR_PUBLIC_ORIGIN` HTTPS dan `HADIR_SETUP_TOKEN` yang valid. Pengaturan publik tidak diabaikan pada mode ini. `.env.example` adalah contoh untuk operator hosting; file tersebut tidak dimuat otomatis oleh `npm start`.
+
+### Variabel lingkungan
+
+Lihat [`.env.example`](.env.example). Atur variabel di dashboard/secret manager hosting, bukan dengan meng-commit `.env`.
+
+| Variabel | Peran |
+| --- | --- |
+| `HOST` | `127.0.0.1` untuk lokal (default); `0.0.0.0` agar proxy hosting bisa menghubungi proses |
+| `PORT` | Port HTTP internal (default `5197`; ikuti port dari hosting) |
+| `HADIR_PUBLIC_ORIGIN` | **Origin HTTPS persis**, misalnya `https://hadir.example.org`; tanpa path atau slash tambahan; digunakan untuk pemeriksaan host/origin dan cookie `Secure` |
+| `HADIR_DATA_DIR` | **Path absolut** direktori penyimpanan persisten, misalnya `/var/lib/hadir`; wajib bila `HOST=0.0.0.0` |
+| `HADIR_SETUP_TOKEN` | Token acak rahasia **32 byte / 64 karakter heksadesimal** dari generator; wajib jika `HADIR_PUBLIC_ORIGIN` diatur; diperlukan untuk membuat admin pertama |
+| `NODE_ENV` | Set `production` untuk runtime hosting |
+
+Generator token aktivasi:
+
+```bash
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+```
+
+Gunakan keluaran tersebut sebagai `HADIR_SETUP_TOKEN` **hanya di konfigurasi rahasia server**; berikan kepada dosen melalui kanal aman. Jangan kirim token melalui GitHub Issue, commit, atau screenshot. Setelah admin pertama dibuat, login dan pengaturan akun bekerja seperti biasa. Untuk sesi HTTP lokal, atribut `Secure` tidak dipasang; pada URL publik HTTPS yang dikonfigurasi, atribut `Secure` dipasang.
+
+### Build dan start
+
+```bash
+npm ci
+npm run build
+npx tsc --noEmit --noUncheckedSideEffectImports
+npm start
+```
+
+Periksa `GET /health` untuk respons `{"status":"ok"}`. Backend harus tetap berjalan di belakang reverse proxy HTTPS. Endpoint kesehatan tidak membuktikan bahwa login, data, dan kamera berfungsi; uji semuanya dengan akun dummy sebelum memakai data sungguhan.
+
+### Batas penyerahan dan verifikasi produksi
+
+- Jangan memakai `npm run dev` sebagai server produksi.
+- Pengujian lokal dan pemeriksaan integritas SQLite sebelumnya **bukan** hasil audit keamanan publik.
+- Operator harus menguji HTTPS, cookie `Secure`, login dan otorisasi, kamera HP, peninjauan admin, backup/pemulihan, serta persistensi data setelah restart dan redeploy.
+- Batas login di aplikasi berlaku per akun dan bersifat in-memory (reset saat restart). Operator wajib menambahkan rate limiting berbasis IP pada reverse proxy tepercaya; aplikasi tidak mempercayai header IP dari klien.
+- Gunakan `npm run check:local` pada direktori data yang benar; jangan membagikan output yang memuat rahasia (skrip hanya mencetak angka ringkas dan fingerprint).
+- Karena aplikasi memproses foto wajah dan data kehadiran, pengelola perlu menyiapkan kebijakan privasi, retensi, persetujuan yang sesuai, serta pembatasan akses.
+- Konfigurasi host mengizinkan satu origin publik yang eksplisit, bukan domain sembarang. Ganti `HADIR_PUBLIC_ORIGIN` bila domain berubah.
+- Jangan gunakan proses multi-instance dengan file SQLite yang sama tanpa desain ulang penyimpanan.
 
 ## Teknologi dan arsitektur
 
@@ -178,6 +241,8 @@ npm run dev
 npm run build
 npm run format:check
 npx tsc --noEmit --noUncheckedSideEffectImports
+npm run check:local
+npm run test:security
 ```
 
 Untuk menerapkan format kode:
@@ -186,15 +251,27 @@ Untuk menerapkan format kode:
 npm run format
 ```
 
-Perintah di atas mencakup build, pemeriksaan format, dan pemeriksaan tipe TypeScript. **Belum ada skrip pengujian otomatis (`npm test`) yang dikonfigurasi** pada versi repositori ini; keberhasilan build tidak sama dengan pengujian fungsional menyeluruh.
+Perintah di atas mencakup build, pemeriksaan format, dan pemeriksaan tipe TypeScript. **Tes otomatis keamanan tersedia lewat `npm run test:security`**, tetapi keberhasilan build dan tes unit tidak menggantikan pengujian fungsional atau audit keamanan produksi.
 
 ### Batasan saat ini
 
-- Aplikasi hanya dapat diakses melalui `127.0.0.1` pada komputer lokal; akses LAN dan hosting belum disiapkan.
+- Aplikasi secara default hanya mendengarkan pada `127.0.0.1`. Akses publik hanya dapat dilakukan melalui konfigurasi hosting yang eksplisit dan memerlukan pengujian keamanan tambahan sebelum memakai data pribadi sungguhan.
 - QR dibaca otomatis dari foto, tetapi **wajah ditinjau manual oleh admin**. Belum ada pengenalan wajah, pemeriksaan keaktifan wajah (*liveness detection*), atau verifikasi GPS.
-- Foto dan catatan lama tetap disimpan hingga dikelola secara manual; belum ada aturan retensi otomatis.
-- Rekap mengambil maksimal **2.000 catatan terbaru** untuk admin dan **1.000 catatan terbaru** untuk anggota. Filter serta ekspor CSV hanya bekerja pada catatan yang sudah dimuat.
+- Foto untuk absensi aktif tetap tersimpan. Pembatalan absensi oleh admin menghapus foto terkait dan mempertahankan metadata pembatalan; belum ada aturan retensi otomatis untuk foto absensi aktif.
+- Rekap mengambil maksimal **2.000 catatan terbaru** untuk admin dan **1.000 catatan terbaru** untuk anggota. Filter serta ekspor Excel hanya bekerja pada catatan yang sudah dimuat.
 - Reset kata sandi dilakukan oleh admin, bukan melalui tautan email.
+
+### Pengujian integritas data lokal
+
+Setelah menghentikan server atau saat server tetap berjalan tanpa aktivitas absensi, jalankan:
+
+```bash
+npm run check:local
+```
+
+Pemeriksaan ini **hanya membaca** database dan memeriksa keberadaan file selfie; tidak mengubah catatan, foto, atau sesi. Hasil menampilkan jumlah absensi aktif, jumlah pembatalan, anomali foto, dan sidik jari ringkas data. Untuk membandingkan persistensi, jalankan sebelum dan setelah restart server tanpa melakukan absensi di antaranya. Sidik jari akan tetap sama jika data yang diperiksa tidak berubah.
+
+Cookie login memakai `HttpOnly` dan `SameSite=Strict`. Pada HTTP lokal atribut `Secure` tidak dipasang; sebelum mengaktifkan HTTPS publik melalui hosting, verifikasi pengaturan cookie, host, origin, dan kontrol akses secara terpisah.
 
 ## Lisensi
 

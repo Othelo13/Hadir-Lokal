@@ -3,10 +3,15 @@ import path from 'node:path';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { root, sqlite } from './storage.mjs';
 import api from './api.mjs';
-const port = Number(process.env.PORT || 5197),
-  dist = path.join(root, 'dist'),
-  development = process.env.HADIR_DEV === '1';
-const allowedHosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
+import { resolveRuntimeConfig } from './runtime-config.mjs';
+import { isSafeStaticFile } from './storage-paths.mjs';
+const { port, host, development, publicOrigin, ignoredPublicOrigin } = resolveRuntimeConfig();
+const dist = path.join(root, 'dist');
+if (ignoredPublicOrigin)
+  console.warn('Mode lokal: HADIR_PUBLIC_ORIGIN lama diabaikan. Server tetap menggunakan localhost.');
+const localHosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
+const allowedHosts = new Set(host === '0.0.0.0' ? [] : localHosts);
+if (publicOrigin) allowedHosts.add(publicOrigin.host);
 let vite;
 if (!development && !existsSync(path.join(dist, 'index.html')))
   throw new Error('Aplikasi belum dibangun. Jalankan npm run build.');
@@ -38,12 +43,23 @@ const developmentHeaders = {
 };
 const server = http.createServer(async (req, res) => {
   try {
-    if (!allowedHosts.has(req.headers.host)) {
+    // Allow local health probes only; do not expose login over plain HTTP.
+    const localHealth = req.url === '/health' && localHosts.has(req.headers.host);
+    if (!allowedHosts.has(req.headers.host) && !localHealth) {
       res.writeHead(403);
       res.end('Host tidak diizinkan.');
       return;
     }
-    const url = new URL(req.url, `http://${req.headers.host}`);
+    const requestOrigin =
+      publicOrigin && req.headers.host === publicOrigin.host
+        ? publicOrigin.origin
+        : `http://${req.headers.host}`;
+    const url = new URL(req.url, requestOrigin);
+    if (url.origin !== requestOrigin) {
+      res.writeHead(403, headers);
+      res.end('Origin tidak diizinkan.');
+      return;
+    }
     if (url.pathname === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json', ...headers });
       res.end('{"status":"ok"}');
@@ -95,6 +111,11 @@ const server = http.createServer(async (req, res) => {
       res.end();
       return;
     }
+    if (existsSync(target) && !isSafeStaticFile(dist, target)) {
+      res.writeHead(403, headers);
+      res.end();
+      return;
+    }
     if (!existsSync(target) || statSync(target).isDirectory()) {
       if (path.extname(relative)) {
         res.writeHead(404);
@@ -135,9 +156,9 @@ server.on('error', (e) => {
   );
   process.exitCode = 1;
 });
-server.listen(port, '127.0.0.1', () =>
+server.listen(port, host, () =>
   console.log(
-    `Hadir aktif: http://127.0.0.1:${port}\n${development ? 'Mode pengembangan: perubahan tampilan diperbarui otomatis.' : 'Login mandiri.'} Data: ${path.join(root, 'data')}\nTekan Ctrl+C untuk berhenti.`,
+    `Hadir aktif: ${publicOrigin?.origin || `http://127.0.0.1:${port}`} (listen ${host}:${port})\n${development ? 'Mode pengembangan: perubahan tampilan diperbarui otomatis.' : 'Login mandiri.'} Data: ${process.env.HADIR_DATA_DIR || path.join(root, 'data')}\nTekan Ctrl+C untuk berhenti.`,
   ),
 );
 for (const signal of ['SIGINT', 'SIGTERM'])
