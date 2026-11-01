@@ -322,6 +322,7 @@ export default function Dashboard() {
                 password: f.get('password'),
                 name: f.get('name'),
                 timezone: f.get('timezone'),
+                setupToken: f.get('setupToken'),
               },
               '',
             );
@@ -331,6 +332,12 @@ export default function Dashboard() {
             }
           }}
         >
+          {data.setup && data.setupTokenRequired && (
+            <label>
+              Token aktivasi admin
+              <PasswordInput name="setupToken" required autoComplete="off" />
+            </label>
+          )}
           {data.setup && (
             <label>
               Nama lengkap
