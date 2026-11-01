@@ -1593,3 +1593,65 @@ footer > span:first-child {
   background: #a4493e;
   color: white;
 }
+
+/* Rekap Absensi: pagination stays compact on desktop and wraps on mobile. */
+.history-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.history-pagination-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.history-pagination-info small {
+  font-size: 10px;
+}
+.history-pagination-controls,
+.history-page-nav,
+.history-page-size {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.history-page-size {
+  flex-direction: row;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.history-page-size select {
+  padding: 8px 26px 8px 10px;
+  font-size: 11px;
+}
+.history-page-nav {
+  font-size: 11px;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.history-page-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--green);
+}
+.history-page-button:hover:not(:disabled) {
+  background: var(--bg);
+}
+@media (max-width: 600px) {
+  .history-pagination {
+    align-items: stretch;
+  }
+  .history-pagination-controls {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+}
