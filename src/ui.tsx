@@ -332,7 +332,7 @@ export default function Dashboard() {
             );
             if (d) {
               setNotice('');
-              history.replaceState(null, '', '/');
+              window.history.replaceState(null, '', '/');
             }
           }}
         >
@@ -441,7 +441,7 @@ export default function Dashboard() {
       (!date || r.date === date) &&
       `${r.name} ${r.email}`.toLowerCase().includes(query.toLowerCase()),
   );
-  const history = paginate(filtered, historyPage, historyPageSize);
+  const paginatedHistory = paginate(filtered, historyPage, historyPageSize);
   const nav: any[] = [
     ['overview', 'Ringkasan', LayoutDashboard],
     ...(!admin ? [['attendance', 'Absensi saya', ScanFace]] : []),
@@ -1011,10 +1011,10 @@ export default function Dashboard() {
                     <Download size={16} /> Ekspor Excel
                   </button>
                 </div>
-                {table(history.rows)}
+                {table(paginatedHistory.rows)}
                 <div className="table-footer history-pagination">
                   <div className="history-pagination-info">
-                    <span>Menampilkan {history.from}–{history.to} dari {history.total} catatan</span>
+                    <span>Menampilkan {paginatedHistory.from}–{paginatedHistory.to} dari {paginatedHistory.total} catatan</span>
                     <small>Ekspor Excel mengikuti seluruh hasil filter. Maksimal {admin ? '2.000' : '1.000'} catatan terbaru dimuat.</small>
                   </div>
                   <div className="history-pagination-controls">
@@ -1032,14 +1032,14 @@ export default function Dashboard() {
                     </label>
                     <nav className="history-page-nav" aria-label="Navigasi halaman rekap absensi">
                       <button type="button" className="history-page-button" aria-label="Halaman sebelumnya"
-                        disabled={history.page <= 1}
-                        onClick={() => setHistoryPage(history.page - 1)}>
+                        disabled={paginatedHistory.page <= 1}
+                        onClick={() => setHistoryPage(paginatedHistory.page - 1)}>
                         <ChevronLeft size={16} />
                       </button>
-                      <span>Halaman {history.page} dari {history.totalPages}</span>
+                      <span>Halaman {paginatedHistory.page} dari {paginatedHistory.totalPages}</span>
                       <button type="button" className="history-page-button" aria-label="Halaman berikutnya"
-                        disabled={history.page >= history.totalPages}
-                        onClick={() => setHistoryPage(history.page + 1)}>
+                        disabled={paginatedHistory.page >= paginatedHistory.totalPages}
+                        onClick={() => setHistoryPage(paginatedHistory.page + 1)}>
                         <ChevronRight size={16} />
                       </button>
                     </nav>
