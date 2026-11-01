@@ -1,5 +1,6 @@
 import { db, bucket, sqlite } from './storage.mjs';
 import { currentUser, authAction } from './auth.mjs';
+import { apiRateLimiter } from './api-rate-limit.mjs';
 import jsQR from 'jsqr';
 import jpeg from 'jpeg-js';
 import QRCode from 'qrcode';
@@ -49,6 +50,8 @@ async function handle(req: Request) {
   const email = me.email,
     user = { userId: me.user_id };
   const admin = me.role === 'admin';
+  if (!apiRateLimiter.allow(me.user_id, action))
+    fail('Terlalu banyak permintaan. Coba lagi beberapa menit.', 429);
   const settings = await db.prepare('SELECT * FROM config WHERE id=1').first<any>();
   const today = local(new Date(), settings.timezone);
   if (action === 'state') {
