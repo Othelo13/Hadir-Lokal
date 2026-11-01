@@ -4,6 +4,7 @@ import { readFileSync, existsSync, statSync } from 'node:fs';
 import { root, sqlite } from './storage.mjs';
 import api from './api.mjs';
 import { resolveRuntimeConfig } from './runtime-config.mjs';
+import { isSafeStaticFile } from './storage-paths.mjs';
 const { port, host, development, publicOrigin, ignoredPublicOrigin } = resolveRuntimeConfig();
 const dist = path.join(root, 'dist');
 if (ignoredPublicOrigin)
@@ -107,6 +108,11 @@ const server = http.createServer(async (req, res) => {
     let target = path.resolve(dist, '.' + relative);
     if (!target.startsWith(dist + path.sep) && target !== dist) {
       res.writeHead(403);
+      res.end();
+      return;
+    }
+    if (existsSync(target) && !isSafeStaticFile(dist, target)) {
+      res.writeHead(403, headers);
       res.end();
       return;
     }
