@@ -7,6 +7,7 @@ import {
 } from 'node:crypto';
 import { promisify } from 'node:util';
 import { sqlite } from './storage.mjs';
+import { createLoginLimiter, matchesSetupToken } from './auth-security.mjs';
 const scrypt = promisify(scryptCallback);
 // The request URL is built using the trusted HTTPS origin in server/index.mjs.
 const sessionCookieOptions = (req) =>
@@ -73,6 +74,7 @@ function requireAdmin(req) {
   if (!actor || actor.role !== 'admin') fail('Hanya admin yang dapat melakukan tindakan ini.', 403);
   return actor;
 }
+const loginLimiter = createLoginLimiter();
 const attempts = new Map();
 function limit(key) {
   const now = Date.now(),
@@ -104,13 +106,8 @@ export async function authAction(req, action, body) {
   if (action === 'setup') {
     if (!empty) fail('Admin pertama sudah dibuat.', 409);
     const expectedToken = process.env.HADIR_SETUP_TOKEN;
-    if (expectedToken) {
-      const submittedToken = typeof body.setupToken === 'string' ? body.setupToken : '';
-      if (!submittedToken || !timingSafeEqual(
-        Buffer.from(digest(submittedToken), 'hex'),
-        Buffer.from(digest(expectedToken), 'hex'),
-      )) fail('Token aktivasi admin tidak valid.', 403);
-    }
+    if (expectedToken && !matchesSetupToken(body.setupToken, expectedToken))
+      fail('Token aktivasi admin tidak valid.', 403);
     const { email, name } = credentials(body);
     if (!name || name.length > 80) fail('Isi nama lengkap, maksimal 80 karakter.');
     if (!zones.includes(body.timezone)) fail('Pilih zona waktu kantor.');
@@ -134,16 +131,16 @@ export async function authAction(req, action, body) {
     return beginSession({ user_id: id }, req);
   }
   if (action === 'login') {
-    limit('login');
-    const email = String(body.email || '')
-      .trim()
-      .toLowerCase();
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase().slice(0, 254) : '';
+    if (loginLimiter.isBlocked(email)) fail('Terlalu banyak percobaan untuk akun ini. Coba lagi dalam 15 menit.', 429);
     const user = sqlite.prepare('SELECT * FROM members WHERE email=? AND active=1').get(email);
     // Perform a hash even when the address is unknown.
     const dummy = 'scrypt:00000000000000000000000000000000:' + '00'.repeat(64);
-    if (!(await verify(body.password, user?.password_hash || dummy)) || !user)
+    if (!(await verify(body.password, user?.password_hash || dummy)) || !user) {
+      loginLimiter.recordFailure(email);
       fail('Email atau kata sandi tidak sesuai.', 401);
-    attempts.delete('login');
+    }
+    loginLimiter.recordSuccess(email);
     return beginSession(user, req);
   }
   if (action === 'logout') {
