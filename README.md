@@ -109,6 +109,12 @@ Repositori ini menyediakan konfigurasi **netral penyedia hosting**. Operator hos
 - Secret management untuk token aktivasi; akses terbatas ke volume data dan backup terenkripsi.
 - Jika hosting memerlukan database eksternal, object storage, atau beberapa instance, kode penyimpanan perlu diadaptasi dahulu. Proyek belum otomatis mendukung PostgreSQL maupun storage S3.
 
+### Pemisahan konfigurasi lokal dan publik
+
+Untuk menjalankan aplikasi di laptop, gunakan `npm start` dengan default `HOST=127.0.0.1`. Jika variabel `HADIR_PUBLIC_ORIGIN` dari percobaan tunnel lama masih ada, server **mengabaikannya dalam mode lokal** dan menampilkan peringatan. Tidak perlu mengaktifkan Cloudflare Tunnel atau VS Code Port Forwarding.
+
+Ketika hosting menggunakan `HOST=0.0.0.0`, aplikasi justru **wajib** memiliki `HADIR_PUBLIC_ORIGIN` HTTPS dan `HADIR_SETUP_TOKEN` yang valid. Pengaturan publik tidak diabaikan pada mode ini. `.env.example` adalah contoh untuk operator hosting; file tersebut tidak dimuat otomatis oleh `npm start`.
+
 ### Variabel lingkungan
 
 Lihat [`.env.example`](.env.example). Atur variabel di dashboard/secret manager hosting, bukan dengan meng-commit `.env`.
@@ -234,6 +240,7 @@ npm run build
 npm run format:check
 npx tsc --noEmit --noUncheckedSideEffectImports
 npm run check:local
+npm run test:security
 ```
 
 Untuk menerapkan format kode:
@@ -242,11 +249,11 @@ Untuk menerapkan format kode:
 npm run format
 ```
 
-Perintah di atas mencakup build, pemeriksaan format, dan pemeriksaan tipe TypeScript. **Belum ada skrip pengujian otomatis (`npm test`) yang dikonfigurasi** pada versi repositori ini; keberhasilan build tidak sama dengan pengujian fungsional menyeluruh.
+Perintah di atas mencakup build, pemeriksaan format, dan pemeriksaan tipe TypeScript. **Tes otomatis keamanan tersedia lewat `npm run test:security`**, tetapi keberhasilan build dan tes unit tidak menggantikan pengujian fungsional atau audit keamanan produksi.
 
 ### Batasan saat ini
 
-- Aplikasi secara default hanya mendengarkan pada `127.0.0.1`. Akses melalui tunnel dapat mengeksposnya ke pihak lain dan belum direkomendasikan untuk data pribadi sungguhan tanpa peninjauan keamanan terpisah.
+- Aplikasi secara default hanya mendengarkan pada `127.0.0.1`. Akses publik hanya dapat dilakukan melalui konfigurasi hosting yang eksplisit dan memerlukan pengujian keamanan tambahan sebelum memakai data pribadi sungguhan.
 - QR dibaca otomatis dari foto, tetapi **wajah ditinjau manual oleh admin**. Belum ada pengenalan wajah, pemeriksaan keaktifan wajah (*liveness detection*), atau verifikasi GPS.
 - Foto untuk absensi aktif tetap tersimpan. Pembatalan absensi oleh admin menghapus foto terkait dan mempertahankan metadata pembatalan; belum ada aturan retensi otomatis untuk foto absensi aktif.
 - Rekap mengambil maksimal **2.000 catatan terbaru** untuk admin dan **1.000 catatan terbaru** untuk anggota. Filter serta ekspor Excel hanya bekerja pada catatan yang sudah dimuat.
@@ -262,7 +269,7 @@ npm run check:local
 
 Pemeriksaan ini **hanya membaca** database dan memeriksa keberadaan file selfie; tidak mengubah catatan, foto, atau sesi. Hasil menampilkan jumlah absensi aktif, jumlah pembatalan, anomali foto, dan sidik jari ringkas data. Untuk membandingkan persistensi, jalankan sebelum dan setelah restart server tanpa melakukan absensi di antaranya. Sidik jari akan tetap sama jika data yang diperiksa tidak berubah.
 
-Cookie login memakai `HttpOnly` dan `SameSite=Strict`. Pada HTTP lokal atribut `Secure` tidak dipasang; sebelum menggunakan HTTPS melalui tunnel publik, verifikasi pengaturan cookie, host, origin, dan kontrol akses secara terpisah.
+Cookie login memakai `HttpOnly` dan `SameSite=Strict`. Pada HTTP lokal atribut `Secure` tidak dipasang; sebelum mengaktifkan HTTPS publik melalui hosting, verifikasi pengaturan cookie, host, origin, dan kontrol akses secara terpisah.
 
 ## Lisensi
 
