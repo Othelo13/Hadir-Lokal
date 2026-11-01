@@ -12,6 +12,9 @@ export function resolveRuntimeConfig(env = process.env) {
   if (!['127.0.0.1', '0.0.0.0'].includes(host))
     throw new Error('HOST harus 127.0.0.1 (lokal) atau 0.0.0.0 (server hosting).');
 
+  if (host === '0.0.0.0' && development)
+    throw new Error('Mode pengembangan tidak boleh berjalan di HOST=0.0.0.0.');
+
   const publicOriginText = env.HADIR_PUBLIC_ORIGIN;
   const ignoredPublicOrigin = host === '127.0.0.1' && !!publicOriginText;
   if (host === '127.0.0.1')
