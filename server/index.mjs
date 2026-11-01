@@ -3,29 +3,47 @@ import path from 'node:path';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { root, sqlite } from './storage.mjs';
 import api from './api.mjs';
-const port = Number(process.env.PORT || 5197),
-  dist = path.join(root, 'dist'),
-  development = process.env.HADIR_DEV === '1';
-// A Quick Tunnel receives a new hostname each time it starts.
-// Only trust the exact HTTPS origin explicitly configured for this session.
+const port = Number(process.env.PORT || 5197);
+const host = process.env.HOST || '127.0.0.1';
+const dist = path.join(root, 'dist');
+const development = process.env.HADIR_DEV === '1';
+if (!Number.isInteger(port) || port < 1 || port > 65535)
+  throw new Error('PORT harus berupa angka antara 1 dan 65535.');
+if (!['127.0.0.1', '0.0.0.0'].includes(host))
+  throw new Error('HOST harus 127.0.0.1 (lokal) atau 0.0.0.0 (server hosting).');
+
+// Public HTTPS origin is supplied explicitly by the deployment operator.
+// Never trust client-provided X-Forwarded-Host or X-Forwarded-Proto headers.
 const publicOriginText = process.env.HADIR_PUBLIC_ORIGIN;
 let publicOrigin;
 if (publicOriginText) {
-  publicOrigin = new URL(publicOriginText);
+  try {
+    publicOrigin = new URL(publicOriginText);
+  } catch {
+    throw new Error('HADIR_PUBLIC_ORIGIN harus berupa URL HTTPS yang valid.');
+  }
+  const hostname = publicOrigin.hostname;
   if (
     publicOrigin.protocol !== 'https:' ||
-    !/^[a-z0-9-]+\.trycloudflare\.com$/.test(publicOrigin.hostname) ||
-    publicOrigin.port ||
+    !hostname.includes('.') ||
+    hostname === 'localhost' ||
+    hostname.endsWith('.localhost') ||
     publicOrigin.username ||
     publicOrigin.password ||
     publicOrigin.pathname !== '/' ||
     publicOrigin.search ||
-    publicOrigin.hash
+    publicOrigin.hash ||
+    publicOrigin.port
   ) {
-    throw new Error('HADIR_PUBLIC_ORIGIN harus berupa https://<subdomain>.trycloudflare.com');
+    throw new Error('HADIR_PUBLIC_ORIGIN harus origin HTTPS publik, contoh: https://hadir.example.org');
   }
 }
-const allowedHosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
+if (host === '0.0.0.0' && !publicOrigin)
+  throw new Error('HOST=0.0.0.0 memerlukan HADIR_PUBLIC_ORIGIN HTTPS.');
+if (publicOrigin && (!process.env.HADIR_SETUP_TOKEN || process.env.HADIR_SETUP_TOKEN.length < 32))
+  throw new Error('Akses publik memerlukan HADIR_SETUP_TOKEN acak minimal 32 karakter.');
+const localHosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
+const allowedHosts = new Set(host === '0.0.0.0' ? [] : localHosts);
 if (publicOrigin) allowedHosts.add(publicOrigin.host);
 let vite;
 if (!development && !existsSync(path.join(dist, 'index.html')))
@@ -58,7 +76,9 @@ const developmentHeaders = {
 };
 const server = http.createServer(async (req, res) => {
   try {
-    if (!allowedHosts.has(req.headers.host)) {
+    // Allow local health probes only; do not expose login over plain HTTP.
+    const localHealth = req.url === '/health' && localHosts.has(req.headers.host);
+    if (!allowedHosts.has(req.headers.host) && !localHealth) {
       res.writeHead(403);
       res.end('Host tidak diizinkan.');
       return;
@@ -164,9 +184,9 @@ server.on('error', (e) => {
   );
   process.exitCode = 1;
 });
-server.listen(port, '127.0.0.1', () =>
+server.listen(port, host, () =>
   console.log(
-    `Hadir aktif: http://127.0.0.1:${port}\n${development ? 'Mode pengembangan: perubahan tampilan diperbarui otomatis.' : 'Login mandiri.'} Data: ${path.join(root, 'data')}\nTekan Ctrl+C untuk berhenti.`,
+    `Hadir aktif: ${publicOrigin?.origin || `http://127.0.0.1:${port}`} (listen ${host}:${port})\n${development ? 'Mode pengembangan: perubahan tampilan diperbarui otomatis.' : 'Login mandiri.'} Data: ${process.env.HADIR_DATA_DIR || path.join(root, 'data')}\nTekan Ctrl+C untuk berhenti.`,
   ),
 );
 for (const signal of ['SIGINT', 'SIGTERM'])
