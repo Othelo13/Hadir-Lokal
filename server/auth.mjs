@@ -8,7 +8,7 @@ import {
 import { promisify } from 'node:util';
 import { sqlite } from './storage.mjs';
 const scrypt = promisify(scryptCallback);
-// The public URL is HTTPS even though cloudflared connects to localhost over HTTP.
+// The request URL is built using the trusted HTTPS origin in server/index.mjs.
 const sessionCookieOptions = (req) =>
   req.url.startsWith('https://') ? '; Secure' : '';
 const respond = (v, status = 200, headers = {}) =>
@@ -85,7 +85,8 @@ function limit(key) {
 }
 export async function authAction(req, action, body) {
   const empty = sqlite.prepare('SELECT COUNT(*) n FROM members').get().n === 0;
-  if (action === 'state' && empty) return respond({ setup: true });
+  if (action === 'state' && empty)
+    return respond({ setup: true, setupTokenRequired: !!process.env.HADIR_SETUP_TOKEN });
   if (action === 'state' && !currentUser(req)) return respond({ login: true });
   if (
     [
@@ -102,6 +103,14 @@ export async function authAction(req, action, body) {
     fail('Metode tidak didukung.', 405);
   if (action === 'setup') {
     if (!empty) fail('Admin pertama sudah dibuat.', 409);
+    const expectedToken = process.env.HADIR_SETUP_TOKEN;
+    if (expectedToken) {
+      const submittedToken = typeof body.setupToken === 'string' ? body.setupToken : '';
+      if (!submittedToken || !timingSafeEqual(
+        Buffer.from(digest(submittedToken), 'hex'),
+        Buffer.from(digest(expectedToken), 'hex'),
+      )) fail('Token aktivasi admin tidak valid.', 403);
+    }
     const { email, name } = credentials(body);
     if (!name || name.length > 80) fail('Isi nama lengkap, maksimal 80 karakter.');
     if (!zones.includes(body.timezone)) fail('Pilih zona waktu kantor.');
