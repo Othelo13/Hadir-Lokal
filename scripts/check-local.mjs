@@ -6,7 +6,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-const dataDir = path.join(root, 'data');
+const dataDir = process.env.HADIR_DATA_DIR
+  ? path.resolve(process.env.HADIR_DATA_DIR)
+  : path.join(root, 'data');
 const selfieDir = path.resolve(dataDir, 'selfies');
 const databasePath = path.join(dataDir, 'hadir.sqlite');
 
