@@ -119,7 +119,7 @@ Lihat [`.env.example`](.env.example). Atur variabel di dashboard/secret manager 
 | `PORT` | Port HTTP internal (default `5197`; ikuti port dari hosting) |
 | `HADIR_PUBLIC_ORIGIN` | **Origin HTTPS persis**, misalnya `https://hadir.example.org`; tanpa path atau slash tambahan; digunakan untuk pemeriksaan host/origin dan cookie `Secure` |
 | `HADIR_DATA_DIR` | **Path absolut** direktori penyimpanan persisten, misalnya `/var/lib/hadir`; wajib bila `HOST=0.0.0.0` |
-| `HADIR_SETUP_TOKEN` | Token acak rahasia minimal 32 karakter; wajib jika `HADIR_PUBLIC_ORIGIN` diatur; diperlukan untuk membuat admin pertama |
+| `HADIR_SETUP_TOKEN` | Token acak rahasia **32 byte / 64 karakter heksadesimal** dari generator; wajib jika `HADIR_PUBLIC_ORIGIN` diatur; diperlukan untuk membuat admin pertama |
 | `NODE_ENV` | Set `production` untuk runtime hosting |
 
 Generator token aktivasi:
@@ -146,6 +146,7 @@ Periksa `GET /health` untuk respons `{"status":"ok"}`. Backend harus tetap berja
 - Jangan memakai `npm run dev` sebagai server produksi.
 - Pengujian lokal dan pemeriksaan integritas SQLite sebelumnya **bukan** hasil audit keamanan publik.
 - Operator harus menguji HTTPS, cookie `Secure`, login dan otorisasi, kamera HP, peninjauan admin, backup/pemulihan, serta persistensi data setelah restart dan redeploy.
+- Batas login di aplikasi berlaku per akun dan bersifat in-memory (reset saat restart). Operator wajib menambahkan rate limiting berbasis IP pada reverse proxy tepercaya; aplikasi tidak mempercayai header IP dari klien.
 - Gunakan `npm run check:local` pada direktori data yang benar; jangan membagikan output yang memuat rahasia (skrip hanya mencetak angka ringkas dan fingerprint).
 - Karena aplikasi memproses foto wajah dan data kehadiran, pengelola perlu menyiapkan kebijakan privasi, retensi, persetujuan yang sesuai, serta pembatasan akses.
 - Konfigurasi host mengizinkan satu origin publik yang eksplisit, bukan domain sembarang. Ganti `HADIR_PUBLIC_ORIGIN` bila domain berubah.
