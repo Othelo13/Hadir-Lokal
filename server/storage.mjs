@@ -3,6 +3,8 @@ import { mkdirSync, readFileSync, writeFileSync, unlinkSync, existsSync } from '
 import path from 'node:path';
 import { assertPrivateDataDirectory } from './storage-paths.mjs';
 import { fileURLToPath } from 'node:url';
+import { migrateAbsenceDomain } from './migrate-absence.mjs';
+import { migrateMemberScheduleHistory } from './migrate-member-schedule.mjs';
 export const root = fileURLToPath(new URL('../', import.meta.url));
 const configuredDataDir = process.env.HADIR_DATA_DIR?.trim();
 if (process.env.HOST === '0.0.0.0' && !configuredDataDir)
@@ -13,8 +15,17 @@ export const dataDir = configuredDataDir ? path.resolve(configuredDataDir) : pat
 mkdirSync(dataDir, { recursive: true, mode: 0o700 });
 assertPrivateDataDirectory(dataDir, path.join(root, 'dist'));
 export const sqlite = new DatabaseSync(path.join(dataDir, 'hadir.sqlite'));
-sqlite.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;');
-sqlite.exec(readFileSync(new URL('./schema.sql', import.meta.url), 'utf8'));
+// Complete all required schema versions before accepting any requests.
+// Each migration is transactional and restart-safe; failure aborts startup.
+try {
+  sqlite.exec('PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;');
+  sqlite.exec(readFileSync(new URL('./schema.sql', import.meta.url), 'utf8'));
+  migrateAbsenceDomain(sqlite);
+  migrateMemberScheduleHistory(sqlite);
+} catch (error) {
+  sqlite.close();
+  throw error;
+}
 export const db = {
   prepare(sql) {
     let values = [];
