@@ -7,6 +7,7 @@ import QRCode from 'qrcode';
 import { SET_MEMBER_ROLE_SQL, deleteEmployee } from './member-policy.mjs';
 import { isAbsenceAction, handleAbsenceAction } from './absence-api.mjs';
 import { bodyLimit } from './absence-attachment.mjs';
+import { handleDailyRecap } from './daily-recap-api.mjs';
 import { assertAttendanceAllowed } from './absence-service.mjs';
 import { commitAttendance, authorizeAttendanceRetake, officeLocal as local } from './attendance-write.mjs';
 export const dynamic = 'force-dynamic';
@@ -44,6 +45,9 @@ async function handle(req: Request) {
   if (isAbsenceAction(action)) {
     const result = handleAbsenceAction(sqlite, me.user_id, action, req.method, url.searchParams, body);
     return result instanceof Response ? result : json(result, action === 'absence-submit' ? 201 : 200);
+  }
+  if (action === 'daily-recap') {
+    return json(handleDailyRecap(sqlite, me.user_id, req.method, url.searchParams, () => currentUser(req)));
   }
   const settings = await db.prepare('SELECT * FROM config WHERE id=1').first<any>();
   const today = local(new Date(), settings.timezone);
