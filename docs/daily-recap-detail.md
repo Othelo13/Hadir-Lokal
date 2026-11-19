@@ -1,0 +1,9 @@
+# P3.4 — Daily attendance detail API
+
+GET /api/app?action=daily-recap-detail&date=YYYY-MM-DD&userId=stable-id. Admin only; GET, live session/role rechecked within one read snapshot; no-store and 120 requests per 5 minutes per authenticated account. Both date and userId required; reject unknown/duplicate parameters, invalid dates, blank/control/overlong IDs. Legacy stable IDs need not be UUIDs.
+
+Response {date,userId,context,summary,records,cancellations,absences}. Summary is the same historical recap row as P3.3, independent of pagination. Return 404 when the selected member/date has no row, including unknown historical roster with no qualifying evidence. Requests with only pending/rejected/cancelled absence and no eligible/evidence row can still be accessed via the separate absence list/detail API.
+
+Records include all active records for that member/date, including rejected review, event timezone if known, and authorized photo endpoint reference (not a filesystem key or proof the photo exists). Cancellations include reason, actor, time and retake authorization metadata, never photo or cleanup keys. Absences include every status on the selected effective day, reason, review/cancel metadata, audit history, reservation indicator and optional attachment metadata/download endpoint. No raw attachment bytes, QR value, session, credentials, storage key or digest. Existing photo and attachment endpoints enforce their own access checks. Detail data is sensitive; do not include medical reasons or attachment contents in default Excel export.
+
+No writes, schema changes or UI changes. Existing review/cancel/retake APIs remain the mutation path; reload recap/detail after mutation. Detail currently computes the daily dataset before selecting one member; profile large rosters in P3.5. Review history for selfies is limited to the current stored review status; no new selfie-review audit table is introduced.

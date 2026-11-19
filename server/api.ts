@@ -8,6 +8,7 @@ import { SET_MEMBER_ROLE_SQL, deleteEmployee } from './member-policy.mjs';
 import { isAbsenceAction, handleAbsenceAction } from './absence-api.mjs';
 import { bodyLimit } from './absence-attachment.mjs';
 import { handleDailyRecap } from './daily-recap-api.mjs';
+import { handleDailyRecapDetail } from './daily-recap-detail.mjs';
 import { assertAttendanceAllowed } from './absence-service.mjs';
 import { commitAttendance, authorizeAttendanceRetake, officeLocal as local } from './attendance-write.mjs';
 export const dynamic = 'force-dynamic';
@@ -48,6 +49,9 @@ async function handle(req: Request) {
   }
   if (action === 'daily-recap') {
     return json(handleDailyRecap(sqlite, me.user_id, req.method, url.searchParams, () => currentUser(req)));
+  }
+  if (action === 'daily-recap-detail') {
+    return json(handleDailyRecapDetail(sqlite, me.user_id, req.method, url.searchParams, () => currentUser(req)));
   }
   const settings = await db.prepare('SELECT * FROM config WHERE id=1').first<any>();
   const today = local(new Date(), settings.timezone);

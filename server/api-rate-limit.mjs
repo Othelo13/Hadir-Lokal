@@ -8,6 +8,7 @@ const POLICIES = Object.freeze({
   attendance: { maxRequests: 12, windowMs: 5 * 60 * 1000 },
   'absence-list': { maxRequests: 120, windowMs: 5 * 60 * 1000 },
   'daily-recap': { maxRequests: 120, windowMs: 5 * 60 * 1000 },
+  'daily-recap-detail': { maxRequests: 120, windowMs: 5 * 60 * 1000 },
   'absence-detail': { maxRequests: 120, windowMs: 5 * 60 * 1000 },
   'absence-attachment': { maxRequests: 30, windowMs: 5 * 60 * 1000 },
   'absence-submit': { maxRequests: 12, windowMs: 5 * 60 * 1000 },
