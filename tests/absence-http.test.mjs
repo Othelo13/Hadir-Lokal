@@ -28,7 +28,7 @@ function photo(code){
  }
  return jpeg.encode({data,width,height},90).data;
 }
-test('real HTTP login, absence attachment, QR attendance, cancellation and retake workflow', {timeout:45000},async t=>{
+test('real HTTP login, absence attachment, QR attendance, cancellation, retake and daily recap workflow', {timeout:90000},async t=>{
  const dir=mkdtempSync(path.join(tmpdir(),'hadir-http-')),file=path.join(dir,'hadir.sqlite');
  const db=new DatabaseSync(file);
  let child,exited;
@@ -77,6 +77,17 @@ test('real HTTP login, absence attachment, QR attendance, cancellation and retak
  }
  const state=await json(await call('a','state'));
  const date=state.today.date;
+ async function recap(id='a'){
+  const list=await json(await call('admin','daily-recap',undefined,{date,pageSize:'50'}));
+  const detail=await json(await call('admin','daily-recap-detail',undefined,{date,userId:id}));
+  const row=list.rows.find(r=>r.userId===id);
+  assert.ok(row);assert.deepEqual(detail.summary,row);
+  return detail;
+ }
+ assert.equal((await call('a','daily-recap',undefined,{date})).status,403);
+ assert.equal((await call('b','daily-recap-detail',undefined,{date,userId:'a'})).status,403);
+ assert.equal((await call(null,'daily-recap',undefined,{date})).status,401);
+ assert.equal((await recap()).summary.status,null);
  const pdf=Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF\n');
  const absence=await json(await call('a','absence-submit',{type:'sick',startDate:date,endDate:date,reason:'Test pengajuan',
   attachment:{name:'bukti.pdf',mimeType:'application/pdf',base64:pdf.toString('base64')}}),201);
@@ -84,32 +95,71 @@ test('real HTTP login, absence attachment, QR attendance, cancellation and retak
  const download=await expect(await call('admin','absence-attachment',undefined,{id:absence.id}),200);
  assert.deepEqual(Buffer.from(await download.arrayBuffer()),pdf);
  assert.match(download.headers.get('content-disposition'),/^attachment/);
+ const pending=await recap();
+ assert.equal(pending.summary.status,null);
+ assert.equal(pending.absences[0].status,'pending');
  const initial=await json(await call('a','challenge',{}));
  await json(await call('admin','absence-approve',{id:absence.id}));
+ const approved=await recap();
+ assert.equal(approved.summary.status,'sick');
+ assert.equal(approved.summary.checkIn,null);
+ assert.equal(approved.absences[0].status,'approved');
+ assert.equal(approved.absences[0].history.length,2);
+ assert.ok(approved.absences[0].attachment.downloadUrl);
+ const safeList=await json(await call('admin','daily-recap',undefined,{date}));
+ assert.equal(JSON.stringify(safeList).includes('Test pengajuan'),false);
  const bytes=photo('qr-test'),payload='data:image/jpeg;base64,'+bytes.toString('base64');
  assert.equal((await call('a','attendance',{kind:'in',challenge:initial.id,photo:payload})).status,409);
  assert.equal((await call('a','challenge',{})).status,409);
  await json(await call('admin','absence-cancel',{id:absence.id,reason:'Anggota kembali masuk'}));
+ const released=await recap();
+ assert.equal(released.summary.status,null);
+ assert.equal(released.absences[0].status,'cancelled');
+ assert.equal(released.absences[0].reserved,false);
  const challenge=await json(await call('a','challenge',{}));
  assert.equal((await call('a','attendance',{kind:'in',challenge:challenge.id,photo:'data:image/jpeg;base64,AAAA'})).status,400);
  await json(await call('a','attendance',{kind:'in',challenge:challenge.id,photo:payload}));
  let entry=db.prepare("SELECT * FROM records WHERE user_id='a' AND kind='in'").get();
  assert.ok(entry);assert.ok(existsSync(path.join(dir,entry.photo)));
+ const present=await recap(),expected=entry.status==='late'?'late':'present';
+ assert.equal(present.summary.status,expected);
+ assert.equal(present.summary.provisional,true);
+ assert.equal(present.summary.checkIn.id,entry.id);
+ await json(await call('admin','review',{id:entry.id,review:'rejected'}));
+ const rejected=await recap();
+ assert.equal(rejected.summary.status,null);assert.equal(rejected.summary.checkIn,null);
+ assert.equal(rejected.records[0].review,'rejected');
+ await json(await call('admin','review',{id:entry.id,review:'approved'}));
+ const restored=await recap();
+ assert.equal(restored.summary.status,expected);assert.equal(restored.summary.provisional,false);
  const selfie=await expect(await call('a','photo',undefined,{id:entry.id}),200);
  assert.deepEqual(Buffer.from(await selfie.arrayBuffer()),bytes);
  assert.equal((await call('b','photo',undefined,{id:entry.id})).status,404);
  const out=await json(await call('a','challenge',{}));
  await json(await call('a','attendance',{kind:'out',challenge:out.id,photo:payload}));
  let exit=db.prepare("SELECT * FROM records WHERE user_id='a' AND kind='out'").get();
+ const complete=await recap();
+ assert.equal(complete.summary.checkOut.id,exit.id);
+ assert.equal(complete.summary.status,expected);
  assert.equal((await call('admin','cancel-attendance',{id:entry.id,reason:'Test pembatalan'})).status,409);
  await json(await call('admin','cancel-attendance',{id:exit.id,reason:'Test pembatalan'}));
  await json(await call('admin','cancel-attendance',{id:entry.id,reason:'Test pembatalan'}));
  assert.equal(existsSync(path.join(dir,entry.photo)),false);
  assert.equal(existsSync(path.join(dir,exit.photo)),false);
+ const cancelled=await recap();
+ assert.equal(cancelled.summary.status,null);assert.equal(cancelled.records.length,0);
+ assert.equal(cancelled.cancellations.length,2);
+ assert.ok(cancelled.cancellations.every(c=>c.photoUrl===null));
  const retry=await json(await call('a','challenge',{}));
  assert.equal((await call('a','attendance',{kind:'in',challenge:retry.id,photo:payload})).status,403);
  await json(await call('admin','authorize-retake',{id:entry.id}));
+ const authorized=await recap();
+ assert.ok(authorized.cancellations.find(c=>c.id===entry.id).retry_authorized_at);
  await json(await call('a','attendance',{kind:'in',challenge:retry.id,photo:payload}));
+ const retaken=await recap();
+ assert.ok(['present','late'].includes(retaken.summary.status));
+ assert.notEqual(retaken.summary.checkIn.id,entry.id);
+ assert.equal(retaken.cancellations.length,2);
  assert.equal(db.prepare('SELECT count(*) n FROM records').get().n,1);
  assert.equal(db.prepare('SELECT count(*) n FROM attendance_cancellations').get().n,2);
  assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
