@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createHash,randomBytes } from 'node:crypto';
 import { officeDate } from '../server/absence-policy.mjs';
-import { insertAttendanceWithAbsenceGuard } from '../server/attendance-write.mjs';
+import { commitAttendance } from '../server/attendance-write.mjs';
 
 const dir=mkdtempSync(path.join(tmpdir(),'hadir-api-'));
 process.env.HADIR_DATA_DIR=dir;
@@ -22,6 +22,14 @@ for(const id of ['a','b','admin']){
   const token=randomBytes(32).toString('hex');
   tokens[id]=token;
   sqlite.prepare('INSERT INTO sessions VALUES(?,?,?)').run(createHash('sha256').update(token).digest('hex'),id,Date.now()+3600000);
+}
+sqlite.exec("INSERT INTO codes VALUES('dummy','Test QR',1,'2026-01-01')");
+function insertAttendanceWithAbsenceGuard(sqlite,record){
+  const now=new Date(record.date+'T00:00:00Z');
+  const challenge=randomBytes(16).toString('hex');
+  sqlite.prepare('INSERT INTO challenges VALUES(?,?,?)').run(challenge,record.userId,now.valueOf()+180000);
+  return commitAttendance(sqlite,{...record,expectedDate:record.date,expectedTimezone:'Asia/Makassar',challenge},
+    ()=>sqlite.prepare('SELECT * FROM members WHERE user_id=?').get(record.userId),()=>now);
 }
 const origin='http://127.0.0.1:5197';
 const date=offset=>officeDate(new Date(Date.now()+offset*86400000),'Asia/Makassar');

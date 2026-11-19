@@ -8,30 +8,12 @@ import { SET_MEMBER_ROLE_SQL, deleteEmployee } from './member-policy.mjs';
 import { isAbsenceAction, handleAbsenceAction } from './absence-api.mjs';
 import { bodyLimit } from './absence-attachment.mjs';
 import { assertAttendanceAllowed } from './absence-service.mjs';
-import { insertAttendanceWithAbsenceGuard } from './attendance-write.mjs';
+import { commitAttendance, authorizeAttendanceRetake, officeLocal as local } from './attendance-write.mjs';
 export const dynamic = 'force-dynamic';
 const json = (v: unknown, status = 200) =>
   Response.json(v, { status, headers: { 'Cache-Control': 'no-store' } });
 function fail(message: string, status = 400): never {
   throw Object.assign(new Error(message), { status });
-}
-function local(now: Date, zone: string) {
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: zone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-    weekday: 'short',
-  }).formatToParts(now);
-  const p = Object.fromEntries(parts.map((p) => [p.type, p.value]));
-  return {
-    date: `${p.year}-${p.month}-${p.day}`,
-    clock: `${p.hour}:${p.minute}`,
-    day: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(p.weekday),
-  };
 }
 async function handle(req: Request) {
   const url = new URL(req.url);
@@ -119,6 +101,7 @@ async function handle(req: Request) {
   if ((action === 'challenge' || action === 'attendance') && me.role !== 'employee')
     fail('Absensi hanya tersedia untuk anggota magang.', 403);
   if (action === 'challenge') {
+    assertAttendanceAllowed(sqlite, user.userId, today.date);
     const id = crypto.randomUUID();
     await db.prepare('DELETE FROM challenges WHERE expires < ?').bind(Date.now()).run();
     await db
@@ -151,12 +134,12 @@ async function handle(req: Request) {
     )
       fail('Absensi ini sudah tercatat hari ini.');
     const latestCancellation = sqlite.prepare(
-      'SELECT retry_authorized_at FROM attendance_cancellations WHERE user_id=? AND date=? AND kind=? ORDER BY cancelled_at DESC LIMIT 1'
+      'SELECT retry_authorized_at FROM attendance_cancellations WHERE user_id=? AND date=? AND kind=? ORDER BY cancelled_at DESC,rowid DESC LIMIT 1'
     ).get(user.userId, today.date, body.kind);
     if (latestCancellation && !latestCancellation.retry_authorized_at)
       fail('Absensi sebelumnya dibatalkan. Hubungi admin untuk izin absensi ulang.', 403);
     const challenge = await db
-      .prepare('DELETE FROM challenges WHERE id=? AND user_id=? AND expires>? RETURNING id')
+      .prepare('SELECT id FROM challenges WHERE id=? AND user_id=? AND expires>?')
       .bind(body.challenge, user.userId, Date.now())
       .first();
     if (!challenge) fail('Sesi kamera kedaluwarsa. Buka kamera kembali.');
@@ -192,12 +175,10 @@ async function handle(req: Request) {
     const key = `selfies/${user.userId}/${id}.jpg`;
     await bucket.put(key, bytes, { httpMetadata: { contentType: 'image/jpeg' } });
     try {
-      insertAttendanceWithAbsenceGuard(sqlite, {
-        id, userId: user.userId, email, name: me.name, date: today.date,
-        kind: body.kind, time: new Date().toISOString(),
-        status: body.kind === 'in' && today.clock > settings.start ? 'late' : 'ontime',
-        photo: key, qr: code.id,
-      });
+      commitAttendance(sqlite, {
+        id, userId: user.userId, expectedDate: today.date, expectedTimezone: settings.timezone,
+        kind: body.kind, challenge: body.challenge, photo: key, qr: code.id,
+      }, () => currentUser(req));
     } catch (error: any) {
       await bucket.delete(key);
       if (error.status) throw error;
@@ -306,6 +287,8 @@ async function handle(req: Request) {
     let row: any;
     sqlite.exec('BEGIN IMMEDIATE');
     try {
+      const actor = currentUser(req);
+      if (!actor || actor.role !== 'admin' || actor.user_id !== user.userId) fail('Hak admin Anda sudah berubah.',403);
       row = sqlite.prepare('SELECT * FROM records WHERE id=?').get(body.id);
       if (!row) fail('Catatan absensi tidak ditemukan atau sudah dibatalkan.', 404);
       if (row.kind === 'in' && sqlite.prepare(
@@ -332,17 +315,7 @@ async function handle(req: Request) {
   if (action === 'authorize-retake') {
     if (typeof body.id !== 'string' || !/^[0-9a-f-]{36}$/i.test(body.id))
       fail('Pilih catatan pembatalan yang valid.');
-    const row: any = sqlite.prepare('SELECT * FROM attendance_cancellations WHERE id=?').get(body.id);
-    if (!row) fail('Catatan pembatalan tidak ditemukan.',404);
-    if (row.date !== today.date) fail('Izin absensi ulang hanya tersedia pada hari yang sama.',409);
-    if (sqlite.prepare('SELECT id FROM records WHERE user_id=? AND date=? AND kind=?')
-      .get(row.user_id,row.date,row.kind)) fail('Absensi aktif sudah tercatat.',409);
-    const latest: any = sqlite.prepare(
-      'SELECT id FROM attendance_cancellations WHERE user_id=? AND date=? AND kind=? ORDER BY cancelled_at DESC LIMIT 1'
-    ).get(row.user_id,row.date,row.kind);
-    if (latest.id !== row.id) fail('Berikan izin melalui pembatalan terbaru.',409);
-    sqlite.prepare('UPDATE attendance_cancellations SET retry_authorized_at=?,retry_authorized_by=? WHERE id=?')
-      .run(new Date().toISOString(),user.userId,row.id);
+    authorizeAttendanceRetake(sqlite, body.id, user.userId, () => currentUser(req));
     return json({ok:true});
   }
   if (action === 'review') {
