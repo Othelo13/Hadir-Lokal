@@ -5,6 +5,9 @@ import jsQR from 'jsqr';
 import jpeg from 'jpeg-js';
 import QRCode from 'qrcode';
 import { SET_MEMBER_ROLE_SQL, deleteEmployee } from './member-policy.mjs';
+import { isAbsenceAction, handleAbsenceAction } from './absence-api.mjs';
+import { assertAttendanceAllowed } from './absence-service.mjs';
+import { insertAttendanceWithAbsenceGuard } from './attendance-write.mjs';
 export const dynamic = 'force-dynamic';
 const json = (v: unknown, status = 200) =>
   Response.json(v, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -42,7 +45,9 @@ async function handle(req: Request) {
       fail('Permintaan tidak valid.');
     }
   }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) fail('Permintaan tidak valid.');
   const action = body.action || url.searchParams.get('action') || 'state';
+  if (typeof action !== 'string') fail('Tindakan tidak valid.');
   const authentication = await authAction(req, action, body);
   if (authentication) return authentication;
   const me = currentUser(req);
@@ -52,6 +57,10 @@ async function handle(req: Request) {
   const admin = me.role === 'admin';
   if (!apiRateLimiter.allow(me.user_id, action))
     fail('Terlalu banyak permintaan. Coba lagi beberapa menit.', 429);
+  if (isAbsenceAction(action)) {
+    return json(handleAbsenceAction(sqlite, me.user_id, action, req.method, url.searchParams, body),
+      action === 'absence-submit' ? 201 : 200);
+  }
   const settings = await db.prepare('SELECT * FROM config WHERE id=1').first<any>();
   const today = local(new Date(), settings.timezone);
   if (action === 'state') {
@@ -118,6 +127,7 @@ async function handle(req: Request) {
   }
   if (action === 'attendance') {
     if (!['in', 'out'].includes(body.kind)) fail('Jenis absensi tidak valid.');
+    assertAttendanceAllowed(sqlite, user.userId, today.date);
     if (!JSON.parse(settings.days).includes(today.day)) fail('Hari ini bukan hari kerja.');
     if (body.kind === 'in' && today.clock > settings.start && !settings.allow_late)
       fail('Absen masuk ditutup setelah pukul ' + settings.start + '. Hubungi admin.');
@@ -180,26 +190,15 @@ async function handle(req: Request) {
     const key = `selfies/${user.userId}/${id}.jpg`;
     await bucket.put(key, bytes, { httpMetadata: { contentType: 'image/jpeg' } });
     try {
-      await db
-        .prepare(
-          'INSERT INTO records (id,user_id,email,name,date,kind,time,status,photo,qr,review) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-        )
-        .bind(
-          id,
-          user.userId,
-          email,
-          me.name,
-          today.date,
-          body.kind,
-          new Date().toISOString(),
-          body.kind === 'in' && today.clock > settings.start ? 'late' : 'ontime',
-          key,
-          code.id,
-          'pending',
-        )
-        .run();
-    } catch {
+      insertAttendanceWithAbsenceGuard(sqlite, {
+        id, userId: user.userId, email, name: me.name, date: today.date,
+        kind: body.kind, time: new Date().toISOString(),
+        status: body.kind === 'in' && today.clock > settings.start ? 'late' : 'ontime',
+        photo: key, qr: code.id,
+      });
+    } catch (error: any) {
       await bucket.delete(key);
+      if (error.status) throw error;
       fail('Absensi sudah tercatat atau gagal disimpan. Muat ulang sebelum mencoba lagi.');
     }
     return json({ ok: true });

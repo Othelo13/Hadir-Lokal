@@ -6,6 +6,12 @@ const POLICIES = Object.freeze({
   photo: { maxRequests: 120, windowMs: 5 * 60 * 1000 },
   challenge: { maxRequests: 24, windowMs: 5 * 60 * 1000 },
   attendance: { maxRequests: 12, windowMs: 5 * 60 * 1000 },
+  'absence-list': { maxRequests: 120, windowMs: 5 * 60 * 1000 },
+  'absence-detail': { maxRequests: 120, windowMs: 5 * 60 * 1000 },
+  'absence-submit': { maxRequests: 12, windowMs: 5 * 60 * 1000 },
+  'absence-approve': { maxRequests: 60, windowMs: 5 * 60 * 1000 },
+  'absence-reject': { maxRequests: 60, windowMs: 5 * 60 * 1000 },
+  'absence-cancel': { maxRequests: 30, windowMs: 5 * 60 * 1000 },
 });
 
 export function createApiRateLimiter({ policies = POLICIES, maxEntries = 10000 } = {}) {
