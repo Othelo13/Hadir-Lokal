@@ -1,4 +1,5 @@
 import { submitAbsence, transitionAbsence } from './absence-service.mjs';
+import { attachmentResponse } from './absence-attachment.mjs';
 
 // Provisional defaults for the development release; never supplied by clients.
 export const absencePolicy = Object.freeze({
@@ -7,7 +8,7 @@ export const absencePolicy = Object.freeze({
 const statuses = new Set(['pending','approved','rejected','cancelled']);
 const types = new Set(['leave','sick']);
 const writes = new Map([['absence-approve','approve'],['absence-reject','reject'],['absence-cancel','cancel']]);
-const actions = new Set(['absence-list','absence-detail','absence-submit',...writes.keys()]);
+const actions = new Set(['absence-list','absence-detail','absence-attachment','absence-submit',...writes.keys()]);
 export function isAbsenceAction(action) { return actions.has(action); }
 
 function fail(message,status=400) { throw Object.assign(new Error(message),{status}); }
@@ -44,7 +45,7 @@ const summaryColumns = `r.id,r.user_id,r.name_snapshot,r.email_snapshot,r.type,r
   EXISTS(SELECT 1 FROM absence_attachments a WHERE a.request_id=r.id) AS has_attachment`;
 
 export function handleAbsenceAction(sqlite, actorId, action, method, params, body) {
-  const read = action==='absence-list'||action==='absence-detail';
+  const read = action==='absence-list'||action==='absence-detail'||action==='absence-attachment';
   if(method !== (read?'GET':'POST')) fail('Metode tidak didukung.',405);
   if(action==='absence-list') return readSnapshot(sqlite,()=>{
     const member=actor(sqlite,actorId), filters=[], args=[];
@@ -75,12 +76,21 @@ export function handleAbsenceAction(sqlite, actorId, action, method, params, bod
     if(!row) fail('Pengajuan tidak ditemukan.',404);
     const days=sqlite.prepare('SELECT date FROM absence_request_days WHERE request_id=? ORDER BY date').all(id).map(row=>row.date);
     const history=sqlite.prepare('SELECT from_status,to_status,actor_user_id,reason,created_at FROM absence_request_history WHERE request_id=? ORDER BY created_at,rowid').all(id);
-    return {request:row,days,history};
+    const attachment=sqlite.prepare('SELECT original_name,mime_type,file_size FROM absence_attachments WHERE request_id=?').get(id)??null;
+    return {request:row,days,history,attachment};
+  });
+  if(action==='absence-attachment') return readSnapshot(sqlite,()=>{
+    const member=actor(sqlite,actorId),id=validId(params.get('id'));
+    const row=sqlite.prepare(`SELECT a.mime_type,a.file_size,a.sha256,b.content
+      FROM absence_requests r JOIN absence_attachments a ON a.request_id=r.id
+      JOIN absence_attachment_blobs b ON b.attachment_id=a.id
+      WHERE r.id=? AND (?='admin' OR r.user_id=?)`).get(id,member.role,actorId);
+    if(!row) fail('Lampiran tidak ditemukan.',404);
+    return attachmentResponse(row);
   });
   if(action==='absence-submit') {
-    // Attachment handling is a separate phase: do not silently discard it.
-    if(Object.hasOwn(body,'attachment')) fail('Lampiran belum tersedia.');
-    return submitAbsence(sqlite,actorId,{type:body.type,startDate:body.startDate,endDate:body.endDate,reason:body.reason},absencePolicy);
+    return submitAbsence(sqlite,actorId,{type:body.type,startDate:body.startDate,endDate:body.endDate,reason:body.reason,
+      ...(Object.hasOwn(body,'attachment')?{attachment:body.attachment}:{})},absencePolicy);
   }
   if(writes.has(action)) return transitionAbsence(sqlite,actorId,validId(body.id),writes.get(action),body.reason,absencePolicy);
   fail('Tindakan tidak dikenal.',404);

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { storeAttachment } from './absence-attachment.mjs';
 import { effectiveAbsenceDays, officeDate, nextAbsenceStatus } from './absence-policy.mjs';
 
 function fail(message, status = 400) {
@@ -86,6 +87,7 @@ export function submitAbsence(sqlite, actorId, input, policy, now = new Date()) 
       insertDay.run(id,day);
       reserve.run(actorId,day,id);
     }
+    if(Object.hasOwn(input,'attachment')) storeAttachment(sqlite,id,input.attachment,timestamp);
     audit(sqlite,id,null,'pending',actorId,null,timestamp);
     return { id,status:'pending',days };
   });

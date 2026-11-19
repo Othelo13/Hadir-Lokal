@@ -45,7 +45,7 @@ test('absence routes require authentication and enforce HTTP methods and same or
   assert.equal((await call('a','absence-list',{method:'POST'})).status,405);
   assert.equal((await call('a','absence-submit',{method:'POST',body:input(1),requestOrigin:'https://other.invalid'})).status,403);
 });
-test('submission uses authenticated identity and rejects invalid or premature attachments',async()=>{
+test('submission uses authenticated identity and rejects malformed attachments',async()=>{
   assert.equal((await submit('admin',1)).status,403);
   assert.equal((await submit('a',1,{attachment:'ignored'})).status,400);
   assert.equal((await submit('a',1,{reason:''})).status,400);

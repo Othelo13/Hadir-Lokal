@@ -5,6 +5,7 @@ import { assertPrivateDataDirectory } from './storage-paths.mjs';
 import { fileURLToPath } from 'node:url';
 import { migrateAbsenceDomain } from './migrate-absence.mjs';
 import { migrateMemberScheduleHistory } from './migrate-member-schedule.mjs';
+import { migrateAbsenceAttachments } from './migrate-absence-attachments.mjs';
 export const root = fileURLToPath(new URL('../', import.meta.url));
 const configuredDataDir = process.env.HADIR_DATA_DIR?.trim();
 if (process.env.HOST === '0.0.0.0' && !configuredDataDir)
@@ -22,6 +23,7 @@ try {
   sqlite.exec(readFileSync(new URL('./schema.sql', import.meta.url), 'utf8'));
   migrateAbsenceDomain(sqlite);
   migrateMemberScheduleHistory(sqlite);
+  migrateAbsenceAttachments(sqlite);
 } catch (error) {
   sqlite.close();
   throw error;

@@ -6,6 +6,7 @@ import jpeg from 'jpeg-js';
 import QRCode from 'qrcode';
 import { SET_MEMBER_ROLE_SQL, deleteEmployee } from './member-policy.mjs';
 import { isAbsenceAction, handleAbsenceAction } from './absence-api.mjs';
+import { bodyLimit } from './absence-attachment.mjs';
 import { assertAttendanceAllowed } from './absence-service.mjs';
 import { insertAttendanceWithAbsenceGuard } from './attendance-write.mjs';
 export const dynamic = 'force-dynamic';
@@ -38,7 +39,7 @@ async function handle(req: Request) {
   if (req.method === 'POST') {
     if (req.headers.get('origin') !== url.origin) fail('Permintaan tidak diizinkan.', 403);
     const raw = await req.text();
-    if (raw.length > 2600000) fail('Ukuran foto terlalu besar.');
+    if (Buffer.byteLength(raw, 'utf8') > bodyLimit(req.method,url.searchParams)) fail('Ukuran permintaan terlalu besar.',413);
     try {
       body = JSON.parse(raw);
     } catch {
@@ -48,6 +49,7 @@ async function handle(req: Request) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) fail('Permintaan tidak valid.');
   const action = body.action || url.searchParams.get('action') || 'state';
   if (typeof action !== 'string') fail('Tindakan tidak valid.');
+  if (req.method === 'POST' && url.searchParams.get('action') === 'absence-submit' && action !== 'absence-submit') fail('Tindakan tidak sesuai.');
   const authentication = await authAction(req, action, body);
   if (authentication) return authentication;
   const me = currentUser(req);
@@ -58,8 +60,8 @@ async function handle(req: Request) {
   if (!apiRateLimiter.allow(me.user_id, action))
     fail('Terlalu banyak permintaan. Coba lagi beberapa menit.', 429);
   if (isAbsenceAction(action)) {
-    return json(handleAbsenceAction(sqlite, me.user_id, action, req.method, url.searchParams, body),
-      action === 'absence-submit' ? 201 : 200);
+    const result = handleAbsenceAction(sqlite, me.user_id, action, req.method, url.searchParams, body);
+    return result instanceof Response ? result : json(result, action === 'absence-submit' ? 201 : 200);
   }
   const settings = await db.prepare('SELECT * FROM config WHERE id=1').first<any>();
   const today = local(new Date(), settings.timezone);

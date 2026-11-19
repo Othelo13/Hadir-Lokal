@@ -3,6 +3,7 @@ import path from 'node:path';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { root, sqlite } from './storage.mjs';
 import api from './api.mjs';
+import { bodyLimit } from './absence-attachment.mjs';
 import { resolveRuntimeConfig } from './runtime-config.mjs';
 import { isSafeStaticFile } from './storage-paths.mjs';
 const { port, host, development, publicOrigin, ignoredPublicOrigin } = resolveRuntimeConfig();
@@ -70,9 +71,9 @@ const server = http.createServer(async (req, res) => {
       let total = 0;
       for await (const chunk of req) {
         total += chunk.length;
-        if (total > 2600000) {
+        if (total > bodyLimit(req.method,url.searchParams)) {
           res.writeHead(413, headers);
-          res.end('Foto terlalu besar.');
+          res.end('Ukuran permintaan terlalu besar.');
           return;
         }
         chunks.push(chunk);

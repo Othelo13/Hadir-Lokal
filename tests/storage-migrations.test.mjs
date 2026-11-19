@@ -28,13 +28,13 @@ function open(dir) {
 function versions(db) {
   return db.prepare('SELECT id FROM schema_migrations ORDER BY id').all().map(row => row.id);
 }
-const expected = ['001-absence-domain','002-member-schedule-history'];
+const expected = ['001-absence-domain','002-member-schedule-history','003-private-absence-attachments'];
 function successful(result) {
   assert.ifError(result.error);
   assert.equal(result.status,0,result.stderr);
 }
 
-test('fresh storage startup applies both migrations and is restart-safe',t=>{
+test('fresh storage startup applies all migrations and is restart-safe',t=>{
   const dir = fixture(t);
   successful(startStorage(dir));
   let db = open(dir);
