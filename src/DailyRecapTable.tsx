@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import DailyRecapDetail from './DailyRecapDetail';
 import { CalendarDays, ChevronLeft, ChevronRight, RefreshCw, Search } from 'lucide-react';
 import { getDailyRecap } from './recap-api';
 import { buildRecapQuery } from './recap-query';
@@ -21,11 +22,12 @@ interface RecapTableViewProps {
   searchText: string;
   setSearchText: (nextText: string) => void;
   resetFilters: () => void;
+  openDetail: (date: string, userId: string) => void;
 }
 
 export function DailyRecapTableView({
   recap, loading, error, refresh, page, pageSize, setPage, setPageSize,
-  selectedDate, serverDate, setSelectedDate, searchText, setSearchText, resetFilters,
+  selectedDate, serverDate, setSelectedDate, searchText, setSearchText, resetFilters, openDetail,
 }: RecapTableViewProps) {
   const rows = recap?.rows.map(recapTableRow) ?? [];
   const info = recap ? recapPageInfo(recap) : null;
@@ -97,6 +99,7 @@ export function DailyRecapTableView({
                   <th scope="col">Pulang</th>
                   <th scope="col">Status</th>
                   <th scope="col">Keterangan</th>
+                  <th scope="col">Detail</th>
                 </tr>
               </thead>
               <tbody>
@@ -106,7 +109,7 @@ export function DailyRecapTableView({
                       <div className="person">
                         <span className="avatar" aria-hidden="true">{row.name.slice(0, 2).toUpperCase()}</span>
                         <span>
-                          <strong>{row.name}</strong>
+                          <button type="button" className="daily-recap-member-button" onClick={() => openDetail(recap.date, row.userId)}>{row.name}</button>
                           <small>{row.email}</small>
                         </span>
                       </div>
@@ -115,6 +118,7 @@ export function DailyRecapTableView({
                     <td className="time">{row.checkOut}</td>
                     <td><span className={'badge daily-recap-status ' + (row.status ?? 'none')}>{row.statusLabel}</span></td>
                     <td>{row.note}</td>
+                    <td><button type="button" className="daily-recap-view-button" aria-label={'Lihat detail ' + row.name} onClick={() => openDetail(recap.date, row.userId)}>Lihat detail</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -166,6 +170,7 @@ export default function DailyRecapTable() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(10);
   const [revision, setRevision] = useState(0);
+  const [selected, setSelected] = useState<{date: string; userId: string} | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchText.trim()), 300);
@@ -201,26 +206,31 @@ export default function DailyRecapTable() {
     return () => { active = false; controller.abort(); };
   }, [selectedDate, debouncedSearch, page, pageSize, revision, searching]);
 
-  return <DailyRecapTableView
+  return <>
+    <DailyRecapTableView
     recap={searching ? null : recap}
     loading={loading || searching}
     error={searching ? '' : error}
-    refresh={() => setRevision((value) => value + 1)}
+    refresh={() => { setSelected(null); setRevision((value) => value + 1); }}
     page={page}
     pageSize={pageSize}
-    setPage={setPage}
-    setPageSize={(value) => { setPage(1); setPageSize(value); }}
+    setPage={(value) => { setSelected(null); setPage(value); }}
+    setPageSize={(value) => { setSelected(null); setPage(1); setPageSize(value); }}
     selectedDate={selectedDate}
     serverDate={serverDate}
-    setSelectedDate={(value) => { setSelectedDate(value); setPage(1); }}
+    setSelectedDate={(value) => { setSelected(null); setSelectedDate(value); setPage(1); }}
     searchText={searchText}
-    setSearchText={(value) => { setSearchText(value); setPage(1); }}
+    setSearchText={(value) => { setSelected(null); setSearchText(value); setPage(1); }}
     resetFilters={() => {
+      setSelected(null);
       setSelectedDate('');
       setSearchText('');
       setDebouncedSearch('');
       setPage(1);
       setRevision((value) => value + 1);
     }}
-  />;
+    openDetail={(date, userId) => setSelected({date, userId})}
+    />
+    {selected && <DailyRecapDetail key={selected.date + ':' + selected.userId} date={selected.date} userId={selected.userId} onClose={() => setSelected(null)} />}
+  </>;
 }

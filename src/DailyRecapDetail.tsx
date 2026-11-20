@@ -1,0 +1,201 @@
+import { useEffect, useRef, useState } from 'react';
+import { CalendarDays, Download, FileText, RefreshCw, X } from 'lucide-react';
+import { getDailyRecapDetail } from './recap-api';
+import { coverageMessage } from './recap-presentation';
+import { recapAbsenceLabel, recapAttachmentHref, recapAttendanceKind, recapCancellationSummary, recapDetailSummary, recapInstantLabel, recapPhotoHref, recapReviewLabel } from './recap-detail-model';
+import type { DailyRecapDetail } from './recap-types';
+
+interface Props {
+  date: string;
+  userId: string;
+  onClose: () => void;
+}
+
+export default function DailyRecapDetail({ date, userId, onClose }: Props) {
+  const [detail, setDetail] = useState<DailyRecapDetail | null>(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [revision, setRevision] = useState(0);
+  const [photoId, setPhotoId] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState(false);
+  const closeButton = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    closeButton.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = previous;
+    };
+  }, [onClose]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+    setDetail(null);
+    setLoading(true);
+    setError('');
+    setPhotoId(null);
+    setPhotoError(false);
+    getDailyRecapDetail(date, userId, controller.signal).then((value) => {
+      if (active) setDetail(value);
+    }).catch((cause: unknown) => {
+      if (!active || (cause instanceof Error && cause.name === 'AbortError')) return;
+      setError(cause instanceof Error ? cause.message : 'Gagal membuka detail absensi.');
+    }).finally(() => {
+      if (active) setLoading(false);
+    });
+    return () => { active = false; controller.abort(); };
+  }, [date, userId, revision]);
+
+  const summary = detail ? recapDetailSummary(detail) : null;
+  const photoRecord = detail?.records.find((record) => record.id === photoId);
+
+  return (
+    <div
+      className="overlay daily-recap-overlay"
+      onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}
+    >
+      <section className="modal daily-recap-modal" role="dialog" aria-modal="true" aria-labelledby="recap-detail-heading">
+        <div className="modal-title daily-recap-detail-header">
+          <div>
+            <small>DETAIL REKAP HARIAN</small>
+            <h2 id="recap-detail-heading">{summary?.name ?? 'Memuat detail absensi…'}</h2>
+            {summary && <p>{summary.email}</p>}
+          </div>
+          <button ref={closeButton} type="button" className="icon-button" aria-label="Tutup detail absensi" onClick={onClose}>
+            <X size={20} />
+          </button>
+        </div>
+        {loading && <p className="daily-recap-state" role="status">Memuat detail absensi…</p>}
+        {error && (
+          <div className="daily-recap-error" role="alert">
+            <span>{error}</span>
+            <button type="button" className="button" onClick={() => setRevision((value) => value + 1)}>
+              <RefreshCw size={15} aria-hidden="true" /> Coba lagi
+            </button>
+          </div>
+        )}
+        {!loading && !error && detail && summary && (
+          <div className="daily-recap-detail-body">
+            <div className="daily-recap-detail-meta">
+              <span><CalendarDays size={15} aria-hidden="true" /> {summary.date}</span>
+              <span className={'badge daily-recap-status ' + (detail.summary.status ?? 'none')}>{summary.status}</span>
+              {summary.note !== '—' && <span className="daily-recap-detail-note">{summary.note}</span>}
+            </div>
+            {coverageMessage(detail.context) && (
+              <p className="daily-recap-message">{coverageMessage(detail.context)}</p>
+            )}
+            <div className="daily-recap-detail-stats">
+              <div><small>Absen masuk</small><strong>{summary.checkIn}</strong></div>
+              <div><small>Absen pulang</small><strong>{summary.checkOut}</strong></div>
+            </div>
+            <section className="daily-recap-detail-section" aria-label="Catatan selfie">
+              <h3>Catatan selfie</h3>
+              <p>Termasuk catatan yang masih menunggu review atau sudah ditolak.</p>
+              {detail.records.length === 0 && <p className="daily-recap-muted">Tidak ada catatan selfie aktif untuk tanggal ini.</p>}
+              {detail.records.map((record) => (
+                <div className="daily-recap-detail-item" key={record.id}>
+                  <div className="daily-recap-detail-item-header">
+                    <strong>{recapAttendanceKind(record.kind)}</strong>
+                    <span className="badge">{recapReviewLabel(record.review)}</span>
+                  </div>
+                  <small>{recapInstantLabel(record.time, record.timezone)}</small>
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => { setPhotoId(record.id === photoId ? null : record.id); setPhotoError(false); }}
+                  >
+                    {photoId === record.id ? 'Tutup foto selfie' : 'Lihat foto selfie'}
+                  </button>
+                </div>
+              ))}
+              {photoRecord && (
+                <div className="daily-recap-photo-preview">
+                  <strong>Foto: {recapAttendanceKind(photoRecord.kind)}</strong>
+                  {photoError ? (
+                    <p role="alert">Foto tidak tersedia atau akses ditolak.</p>
+                  ) : (
+                    <img
+                      src={recapPhotoHref(photoRecord)}
+                      alt={'Bukti selfie ' + recapAttendanceKind(photoRecord.kind).toLowerCase()}
+                      onError={() => setPhotoError(true)}
+                    />
+                  )}
+                </div>
+              )}
+            </section>
+            <section className="daily-recap-detail-section" aria-label="Riwayat pembatalan">
+              <h3>Riwayat pembatalan absensi</h3>
+              {detail.cancellations.length === 0 && <p className="daily-recap-muted">Tidak ada pembatalan untuk tanggal ini.</p>}
+              {detail.cancellations.map((cancel) => {
+                const item = recapCancellationSummary(cancel);
+                return (
+                  <div className="daily-recap-detail-item" key={cancel.id}>
+                    <div className="daily-recap-detail-item-header">
+                      <strong>{item.kind}</strong>
+                      <span className="badge danger">Dibatalkan</span>
+                    </div>
+                    <small>Catatan asli: {item.time}</small>
+                    <small>Oleh {item.cancelledBy} · {recapInstantLabel(item.cancelledAt, detail.context.timezone)}</small>
+                    <p><strong>Alasan:</strong> {item.reason}</p>
+                    <small>Otorisasi ulang: {item.retakeAuthorized ? 'Diberikan' : 'Belum diberikan'}</small>
+                  </div>
+                );
+              })}
+            </section>
+            <section className="daily-recap-detail-section" aria-label="Pengajuan izin dan sakit">
+              <h3>Pengajuan izin / sakit</h3>
+              {detail.absences.length === 0 && <p className="daily-recap-muted">Tidak ada pengajuan pada tanggal ini.</p>}
+              {detail.absences.map((request) => (
+                <div className="daily-recap-detail-item" key={request.id}>
+                  <div className="daily-recap-detail-item-header">
+                    <strong>{request.type === 'sick' ? 'Sakit' : 'Izin'}</strong>
+                    <span className="badge">{recapAbsenceLabel(request.status)}</span>
+                  </div>
+                  <small>Periode: {request.start_date} – {request.end_date}</small>
+                  <p><strong>Alasan:</strong> {request.reason}</p>
+                  {request.review_reason && <p><strong>Alasan review:</strong> {request.review_reason}</p>}
+                  {request.cancel_reason && <p><strong>Alasan pembatalan:</strong> {request.cancel_reason}</p>}
+                  {request.attachment && (
+                    <a className="text-button" href={recapAttachmentHref(request)} download>
+                      <Download size={15} aria-hidden="true" />
+                      Unduh {request.attachment.original_name}
+                    </a>
+                  )}
+                  {request.history.length > 0 && (
+                    <div className="daily-recap-audit">
+                      <h4>Riwayat persetujuan</h4>
+                      <ul>
+                        {request.history.map((event, index) => (
+                          <li key={index}>
+                            {recapAbsenceLabel(event.to_status)} — {recapInstantLabel(event.created_at, request.office_timezone)}
+                            {event.reason && <span> · {event.reason}</span>}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </section>
+            {detail.summary.issues.length > 0 && (
+              <p className="daily-recap-detail-warning" role="status">
+                Ada {detail.summary.issues.length} anomali data. Periksa catatan absensi, pengajuan, dan riwayat pembatalan sebelum mengambil keputusan.
+              </p>
+            )}
+            <small className="daily-recap-detail-privacy"><FileText size={14} aria-hidden="true" /> Detail khusus admin. Foto dan lampiran dimuat melalui endpoint privat.</small>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}

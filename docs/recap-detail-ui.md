@@ -1,0 +1,9 @@
+# P4.4 — Read-only admin attendance detail UI
+
+The daily recap table adds an explicit keyboard-accessible 'Lihat detail' button for each immutable userId/date; selecting the member name opens the same dialog. A modal fetches GET /api/app?action=daily-recap-detail&date=...&userId=... only after selection. This endpoint rechecks active admin session in a single read snapshot and returns summary, all active records (including rejected selfie reviews), cancellations, and all effective absence statuses, history, reasons and attachment metadata.
+
+The dialog shows member identity/date, effective status with explicit unknown, in/out times using historical timezone or UTC when unknown, generic review status, canceled event metadata and admin reasons, effective leave/sick requests with review/cancellation history and attachment download. Selfie image requests are lazy after user clicks 'Lihat foto selfie' and use the existing authenticated photo endpoint; canceled images are never loaded. Attachment links use existing authorized forced-download endpoint. All media links are constructed from immutable IDs rather than storage keys; no QR/photo key, credentials or medical reason appears in list rows.
+
+Opening detail does not enable any review, cancel, or retake mutations; those are P4.5. On close/unmount, aborted requests cannot fill a stale modal; refresh, date/search/page/size/reset close detail first. The dialog supports Escape and close/backdrop click, focuses close button on opening, and restores body scrolling. Modal data is not persisted. The existing legacy history/review/Excel view is unchanged. Screen-reader tab focus containment and end-to-end browser validation remain P4.6.
+
+Nine tests validate model labels, timezone/UTC, absent identity, authorization/abort, safe URL encoding, and review/cancellation summaries. No backend schema changes or production deployment.
