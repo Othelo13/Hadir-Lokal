@@ -3,6 +3,7 @@ export type MemberRecapDayState = 'present' | 'absent' | 'leave' | 'sick' | 'pen
 export interface MemberRecapTime { time:string;timezone:string|null; }
 export interface MemberRecapDay {
  date:string;state:MemberRecapDayState;late:boolean;hasDetail:boolean;
+ historicalEvidenceOnly?:boolean;
  checkIn:MemberRecapTime|null;checkOut:MemberRecapTime|null;
 }
 export interface MemberRecapRow {
