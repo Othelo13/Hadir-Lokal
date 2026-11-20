@@ -7,6 +7,8 @@ export type AttendanceExportRecord = {
   date: string;
   kind: 'in' | 'out';
   time: string;
+  timezone?: string | null;
+  cancelledTimezone?: string | null;
   status: string;
   review?: string;
   cancelled?: boolean;
@@ -147,13 +149,15 @@ function dateSerial(date: string) {
   const [y,m,d] = date.split('-').map(Number);
   return (Date.UTC(y, m - 1, d) - Date.UTC(1899, 11, 30)) / 86400000;
 }
-function localDateTime(iso: string | undefined, timezone: string) {
+function localDateTime(iso: string | undefined, timezone: string | null) {
   if (!iso) return '';
   const date = new Date(iso);
-  return Number.isNaN(date.valueOf()) ? '' : date.toLocaleString('id-ID', {
-    timeZone: timezone, day: '2-digit', month: '2-digit', year: 'numeric',
+  if (Number.isNaN(date.valueOf())) return '';
+  const formatted = date.toLocaleString('id-ID', {
+    timeZone: timezone ?? 'UTC', day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit', hour12: false,
   });
+  return formatted + (timezone === null ? ' UTC' : '');
 }
 
 /** Baris yang masuk adalah baris setelah filter tanggal/pencarian di tampilan rekap. */
@@ -165,7 +169,7 @@ export function buildAttendanceExcel(
   const heads = ['Nama', 'Email', 'Tanggal', 'Jenis', 'Jam', 'Status', 'Tinjauan', 'Alasan Pembatalan', 'Dibatalkan Pada', 'ID Catatan'];
   const rekap: SheetCell[][] = [
     [cell('HADIR / REKAP ABSENSI', 1)],
-    [cell(`Total ${records.length} catatan · Zona waktu: ${timezone} · Filter: ${options.dateFilter || 'Semua tanggal'}${options.query?.trim() ? ` · Pencarian: ${options.query.trim()}` : ''}`, 2)],
+    [cell(`Total ${records.length} catatan · Zona waktu historis per catatan (UTC bila tidak diketahui); konfigurasi kini ${timezone} · Filter: ${options.dateFilter || 'Semua tanggal'}${options.query?.trim() ? ` · Pencarian: ${options.query.trim()}` : ''}`, 2)],
     [],
     heads.map(h => cell(h, 3)),
   ];
@@ -176,11 +180,13 @@ export function buildAttendanceExcel(
     const valid = !cancelled && !rejected;
     const status = cancelled ? 'Dibatalkan' : r.status === 'late' ? 'Terlambat' : 'Tepat waktu';
     const review = cancelled ? 'Dibatalkan' : r.review === 'approved' ? 'Disetujui' : r.review === 'rejected' ? 'Ditolak' : 'Menunggu tinjauan';
-    const time = localDateTime(r.time, timezone).split(', ')[1] || '';
+    const clockZone = r.timezone === undefined ? timezone : r.timezone;
+    const cancelZone = r.cancelledTimezone === undefined ? timezone : r.cancelledTimezone;
+    const time = localDateTime(r.time, clockZone).split(', ')[1] || '';
     rekap.push([
       cell(r.name), cell(r.email), cell(dateSerial(r.date), 5), cell(r.kind === 'in' ? 'Masuk' : 'Pulang'),
       cell(time), cell(status, cancelled ? 4 : status === 'Terlambat' ? 7 : 0), cell(review),
-      cell(cancelled ? r.reason || '' : ''), cell(cancelled ? localDateTime(r.cancelled_at, timezone) : ''), cell(r.id),
+      cell(cancelled ? r.reason || '' : ''), cell(cancelled ? localDateTime(r.cancelled_at, cancelZone) : ''), cell(r.id),
     ]);
     const key = r.email.trim().toLowerCase();
     if (!summary.has(key)) summary.set(key, { name: r.name, email: r.email, masuk: 0, pulang: 0, late: 0, cancelled: 0, rejected: 0, total: 0 });
