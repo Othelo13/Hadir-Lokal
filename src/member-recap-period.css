@@ -50,6 +50,7 @@
   font-weight: 500;
   padding: 15px 20px;
   border-bottom: 1px solid var(--line);
+  text-align: center;
 }
 .member-recap-table td {
   padding: 16px 20px;
