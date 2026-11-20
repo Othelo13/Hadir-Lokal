@@ -152,6 +152,32 @@ test('historical coverage before migration never creates a false absence',t=>{
  assert.equal(result.rows[0].absent,0);
  assert.equal(result.rows[0].days.length,0); // no stored data on unknown historical day
 });
+test('approved pre-migration late check-in contributes one attended day without inventing absences',t=>{
+ const f=fixture(t);
+ f.attendance('alice','2026-10-31','late');
+ const result=f.read({month:'2026-10'});
+ const alice=result.rows.find(r=>r.userId==='alice');
+ const bob=result.rows.find(r=>r.userId==='bob');
+ assert.deepEqual([alice.present,alice.late,alice.absent,alice.leave,alice.sick],[1,1,0,0,0]);
+ assert.deepEqual(alice.days.map(d=>({date:d.date,state:d.state,late:d.late,historicalEvidenceOnly:d.historicalEvidenceOnly})),
+  [{date:'2026-10-31',state:'present',late:true,historicalEvidenceOnly:true}]);
+ assert.equal(alice.days[0].checkIn.timezone,null);
+ assert.equal(bob.absent,0);
+ assert.deepEqual(bob.days,[]);
+ assert.ok(result.unverifiedDates>0);
+});
+test('pre-migration pending or rejected records never count as confirmed presence',t=>{
+ const f=fixture(t),date='2026-10-30';
+ f.db.prepare('INSERT INTO records VALUES(?,?,?,?,?,?,?,?,?,?,?)').run(
+  'pending-legacy','alice','alice@example.invalid','Alice',date,'in',date+'T06:00:00Z','late','private.jpg','qr','pending');
+ const first=f.read({month:'2026-10'}).rows.find(r=>r.userId==='alice');
+ assert.equal(first.present,0);
+ assert.equal(first.days.find(d=>d.date===date).state,'pending');
+ f.db.prepare("UPDATE records SET review='rejected' WHERE id='pending-legacy'").run();
+ const second=f.read({month:'2026-10'}).rows.find(r=>r.userId==='alice');
+ assert.equal(second.present,0);
+ assert.equal(second.days.find(d=>d.date===date).state,'unknown');
+});
 test('malformed period parameters and cross-mode filters fail before reporting',t=>{
  const f=fixture(t);
  for(const params of [
