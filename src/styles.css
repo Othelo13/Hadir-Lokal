@@ -1730,3 +1730,56 @@ footer > span:first-child {
   .daily-recap-pages { justify-content: space-between; width: 100%; }
   .daily-recap-message { margin: 14px 17px 0; }
 }
+
+
+/* P4.3 — Date and server-side name/email filters. */
+.daily-recap-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 17px 24px;
+  border-bottom: 1px solid var(--line);
+  background: #fcfdfa;
+}
+.daily-recap-filter-date, .daily-recap-filter-search {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: #697568;
+  font-size: 11px;
+  font-weight: 600;
+}
+.daily-recap-filter-date input, .daily-recap-search-field {
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--ink);
+  background: #fff;
+}
+.daily-recap-filter-date input { padding: 0 10px; min-width: 160px; }
+.daily-recap-filter-search { flex: 1 1 220px; min-width: 180px; }
+.daily-recap-search-field {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 10px;
+}
+.daily-recap-search-field svg { color: #859084; flex: 0 0 auto; }
+.daily-recap-search-field input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-size: 12px;
+}
+.daily-recap-search-field:focus-within { outline: 3px solid #9daf6a; outline-offset: 2px; }
+.daily-recap-reset { margin-bottom: 1px; }
+@media (max-width: 640px) {
+  .daily-recap-filters { padding: 14px 17px; gap: 12px; }
+  .daily-recap-filter-date { width: 100%; }
+  .daily-recap-filter-date input { width: 100%; }
+  .daily-recap-filter-search { flex: 1 1 100%; }
+  .daily-recap-reset { width: 100%; }
+}

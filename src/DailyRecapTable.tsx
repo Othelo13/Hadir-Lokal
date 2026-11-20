@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, RefreshCw, Search } from 'lucide-react';
 import { getDailyRecap } from './recap-api';
+import { buildRecapQuery } from './recap-query';
 import { coverageMessage } from './recap-presentation';
 import { recapPageInfo, recapTableRow } from './recap-view-model';
 import type { DailyRecapResponse, PageSize } from './recap-types';
@@ -14,10 +15,17 @@ interface RecapTableViewProps {
   pageSize: PageSize;
   setPage: (nextPage: number) => void;
   setPageSize: (nextSize: PageSize) => void;
+  selectedDate: string;
+  serverDate: string;
+  setSelectedDate: (nextDate: string) => void;
+  searchText: string;
+  setSearchText: (nextText: string) => void;
+  resetFilters: () => void;
 }
 
 export function DailyRecapTableView({
   recap, loading, error, refresh, page, pageSize, setPage, setPageSize,
+  selectedDate, serverDate, setSelectedDate, searchText, setSearchText, resetFilters,
 }: RecapTableViewProps) {
   const rows = recap?.rows.map(recapTableRow) ?? [];
   const info = recap ? recapPageInfo(recap) : null;
@@ -33,12 +41,42 @@ export function DailyRecapTableView({
         <div className="daily-recap-head-actions">
           <span className="daily-recap-date">
             <CalendarDays size={15} aria-hidden="true" />
-            {recap?.date ?? 'Tanggal kantor'}
+            {recap?.date ?? (selectedDate || serverDate || 'Tanggal kantor')}
           </span>
           <button type="button" className="button" onClick={refresh} disabled={loading}>
             <RefreshCw size={15} aria-hidden="true" /> Perbarui
           </button>
         </div>
+      </div>
+      <div className="daily-recap-filters">
+        <label className="daily-recap-filter-date">
+          <span>Tanggal rekap</span>
+          <input
+            type="date"
+            aria-label="Tanggal rekap"
+            min="1900-01-01"
+            max="9998-12-31"
+            value={selectedDate || serverDate}
+            onChange={(event) => setSelectedDate(event.target.value)}
+          />
+        </label>
+        <label className="daily-recap-filter-search">
+          <span>Cari anggota</span>
+          <span className="daily-recap-search-field">
+            <Search size={16} aria-hidden="true" />
+            <input
+              type="search"
+              aria-label="Cari nama atau email anggota"
+              placeholder="Cari nama atau email…"
+              maxLength={100}
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+            />
+          </span>
+        </label>
+        <button type="button" className="button daily-recap-reset" onClick={resetFilters}>
+          Reset filter
+        </button>
       </div>
       {message && <p className="daily-recap-message" role="status">{message}</p>}
       {error && (
@@ -86,7 +124,7 @@ export function DailyRecapTableView({
             <div className="empty">
               <CalendarDays size={30} aria-hidden="true" />
               <h3>Tidak ada data rekap</h3>
-              <p>Tidak ditemukan anggota atau bukti absensi untuk tanggal ini.</p>
+              <p>Tidak ditemukan anggota atau bukti absensi untuk tanggal dan pencarian ini.</p>
             </div>
           )}
           <div className="daily-recap-footer">
@@ -94,7 +132,11 @@ export function DailyRecapTableView({
             <div className="daily-recap-pages">
               <label>
                 Baris
-                <select value={pageSize} onChange={(event) => setPageSize(Number(event.target.value) as PageSize)} aria-label="Jumlah anggota per halaman">
+                <select
+                  value={pageSize}
+                  onChange={(event) => setPageSize(Number(event.target.value) as PageSize)}
+                  aria-label="Jumlah anggota per halaman"
+                >
                   <option value={10}>10</option>
                   <option value={20}>20</option>
                   <option value={50}>50</option>
@@ -115,6 +157,10 @@ export function DailyRecapTableView({
 
 export default function DailyRecapTable() {
   const [recap, setRecap] = useState<DailyRecapResponse | null>(null);
+  const [serverDate, setServerDate] = useState('');
+  const [selectedDate, setSelectedDate] = useState('');
+  const [searchText, setSearchText] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -122,13 +168,28 @@ export default function DailyRecapTable() {
   const [revision, setRevision] = useState(0);
 
   useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchText.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [searchText]);
+
+  const searching = searchText.trim() !== debouncedSearch;
+
+  useEffect(() => {
+    if (searching) {
+      setRecap(null);
+      setError('');
+      setLoading(true);
+      return;
+    }
     const controller = new AbortController();
     let active = true;
     setLoading(true);
     setError('');
     setRecap(null);
-    getDailyRecap({ page, pageSize }, controller.signal).then((result) => {
+    const params = buildRecapQuery({ selectedDate, search: debouncedSearch, page, pageSize });
+    getDailyRecap(params, controller.signal).then((result) => {
       if (!active) return;
+      setServerDate(result.date);
       setRecap(result);
       if (result.page !== page) setPage(result.page);
     }).catch((cause: unknown) => {
@@ -138,16 +199,28 @@ export default function DailyRecapTable() {
       if (active) setLoading(false);
     });
     return () => { active = false; controller.abort(); };
-  }, [page, pageSize, revision]);
+  }, [selectedDate, debouncedSearch, page, pageSize, revision, searching]);
 
   return <DailyRecapTableView
-    recap={recap}
-    loading={loading}
-    error={error}
+    recap={searching ? null : recap}
+    loading={loading || searching}
+    error={searching ? '' : error}
     refresh={() => setRevision((value) => value + 1)}
     page={page}
     pageSize={pageSize}
     setPage={setPage}
     setPageSize={(value) => { setPage(1); setPageSize(value); }}
+    selectedDate={selectedDate}
+    serverDate={serverDate}
+    setSelectedDate={(value) => { setSelectedDate(value); setPage(1); }}
+    searchText={searchText}
+    setSearchText={(value) => { setSearchText(value); setPage(1); }}
+    resetFilters={() => {
+      setSelectedDate('');
+      setSearchText('');
+      setDebouncedSearch('');
+      setPage(1);
+      setRevision((value) => value + 1);
+    }}
   />;
 }
