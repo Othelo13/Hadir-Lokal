@@ -7,6 +7,7 @@ import {migrateMemberScheduleHistory} from '../server/migrate-member-schedule.mj
 import {migrateAbsenceAttachments} from '../server/migrate-absence-attachments.mjs';
 import {handleMemberRecap} from '../server/member-recap.mjs';
 import {formatRecapTime} from '../src/recap-presentation.ts';
+import {buildAttendanceExcel} from '../src/excel-export.ts';
 
 function fixture(t) {
  const db=new DatabaseSync(':memory:'); t.after(()=>db.close());
@@ -107,4 +108,18 @@ test('empty detail displays a table empty state and not generated date rows',()=
  const jsx=readFileSync(new URL('../src/MemberRecapTable.tsx',import.meta.url),'utf8');
  assert.match(jsx,/member\.days\.length===0/);
  assert.match(jsx,/Belum ada catatan absensi, izin, atau sakit pada periode ini/);
+});
+
+test('legacy UTC clock stays explicit in recap display and Excel without guessing current office timezone',()=>{
+ const legacy={time:'2026-10-31T06:09:29.466Z',timezone:null};
+ assert.equal(formatRecapTime(legacy),'06:09 UTC');
+ const bytes=buildAttendanceExcel([{
+  id:'record-1',user_id:'intern',name:'Intern',email:'intern@example.invalid',
+  date:'2026-10-31',kind:'in',time:legacy.time,timezone:null,status:'late',review:'approved'
+ }],{timezone:'Asia/Makassar'});
+ const workbook=new TextDecoder().decode(bytes);
+ assert.match(workbook,/06[.:]09 UTC/);
+ assert.doesNotMatch(workbook,/14[.:]09/);
+ const history=readFileSync(new URL('../src/ui.tsx',import.meta.url),'utf8');
+ assert.match(history,/fmtTime\(r\.time, r\.timezone\)/);
 });
