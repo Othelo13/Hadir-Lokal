@@ -446,7 +446,7 @@ export default function Dashboard() {
   const nav: any[] = [
     ['overview', 'Ringkasan', LayoutDashboard],
     ...(!admin ? [['attendance', 'Absensi saya', ScanFace]] : []),
-    ...(admin ? [['recap', 'Rekap absensi harian', CalendarDays]] : []),
+    ...(admin ? [['recap', 'Rekap absensi', CalendarDays]] : []),
     ['history', admin ? 'Riwayat & ekspor' : 'Riwayat absensi', Clock3],
     ['account', 'Akun saya', ShieldCheck],
     ...(admin
