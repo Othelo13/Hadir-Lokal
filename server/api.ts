@@ -10,6 +10,7 @@ import { bodyLimit } from './absence-attachment.mjs';
 import { handleDailyRecap } from './daily-recap-api.mjs';
 import { handleDailyRecapDetail } from './daily-recap-detail.mjs';
 import { handleMemberRecap } from './member-recap.mjs';
+import { scheduleAt } from './member-schedule-history.mjs';
 import { assertAttendanceAllowed } from './absence-service.mjs';
 import { commitAttendance, authorizeAttendanceRetake, officeLocal as local } from './attendance-write.mjs';
 export const dynamic = 'force-dynamic';
@@ -71,9 +72,22 @@ async function handle(req: Request) {
         ? 'SELECT id,user_id,email,name,date,kind,time,reason,cancelled_by,cancelled_at,retry_authorized_at FROM attendance_cancellations ORDER BY time DESC LIMIT 2000'
         : 'SELECT id,user_id,email,name,date,kind,time,reason,cancelled_by,cancelled_at,retry_authorized_at FROM attendance_cancellations WHERE user_id=? ORDER BY time DESC LIMIT 1000'
     ).all(...(admin ? [] : [user.userId]));
+    const timezones = new Map<string, string | null>();
+    const historicalTimezone = (value: string): string | null => {
+      if (!timezones.has(value)) {
+        const instant = new Date(value);
+        timezones.set(value, Number.isFinite(instant.valueOf())
+          ? scheduleAt(sqlite, instant).schedule?.timezone ?? null : null);
+      }
+      return timezones.get(value) ?? null;
+    };
     const allRecords = [...history.results, ...cancellations.map((item: any) => ({
       ...item, cancelled: true, review: 'cancelled', photo: null, status: 'cancelled'
-    }))].sort((a: any,b: any) => b.time.localeCompare(a.time));
+    }))].map((item: any) => ({
+      ...item,
+      timezone: historicalTimezone(item.time),
+      cancelledTimezone: item.cancelled_at ? historicalTimezone(item.cancelled_at) : null,
+    })).sort((a: any,b: any) => b.time.localeCompare(a.time));
     const people = admin
       ? (
           await db
