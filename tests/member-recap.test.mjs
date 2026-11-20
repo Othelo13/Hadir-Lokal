@@ -65,21 +65,21 @@ test('counts attended late approved leave and sick independently over completed 
 });
 test('missing finished working dates count as absent but current date never does',t=>{
  const f=fixture(t),row=f.read().rows[0];
- assert.equal(row.absent,3); // Nov 17,18,19
+ assert.equal(row.absent,2); // Nov 18–19; migration day Nov 17 has partial coverage
  assert.equal(row.present,0);
  assert.equal(row.pending,0);
- assert.equal(f.read().verifiedWorkdays,3);
+ assert.equal(f.read().verifiedWorkdays,2);
 });
 test('pending leave is not mistaken for a confirmed absence',t=>{
  const f=fixture(t);f.absence('bob','2026-11-18','leave','pending');
  const bob=f.read().rows.find(row=>row.userId==='bob');
  assert.equal(bob.pending,1);
- assert.equal(bob.absent,2);
+ assert.equal(bob.absent,1);
 });
 test('historical coverage before migration is not counted as absence',t=>{
  const f=fixture(t),result=f.read();
  assert.ok(result.unverifiedDates>0);
- assert.equal(result.rows[0].absent,3);
+ assert.equal(result.rows[0].absent,2);
 });
 test('future months return current employees with zeroes but no projected absence',t=>{
  const f=fixture(t),result=f.read({month:'2026-12'});
