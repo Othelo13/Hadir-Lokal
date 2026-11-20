@@ -62,7 +62,11 @@
 .member-recap-table .person .avatar { width: 30px; height: 30px; font-size: 9px; flex: 0 0 30px; }
 .member-recap-table .person strong { font-size: 11px; font-weight: 500; color: #3b4939; }
 .member-recap-table .person small { font-size: 9px; margin-top: 3px; color: #77816e; }
-.member-recap-table td:not(:first-child) { font-variant-numeric: tabular-nums; }
+.member-recap-table td:first-child { text-align: left; }
+.member-recap-table td:not(:first-child) {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
 .member-recap-table td:not(:first-child) > strong { font-size: 11px; font-weight: 500; color: #4a5943; }
 .member-recap-table .member-recap-muted { font-size: 9px; margin-top: 3px; }
 .member-recap-table tbody tr[role="button"]:hover { background: #f8faf4; }
