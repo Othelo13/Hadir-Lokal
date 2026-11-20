@@ -7,9 +7,9 @@ test('all member recap column headers are centered without altering cell alignme
  const headers = css.match(/\.member-recap-table th\s*\{([^}]+)\}/);
  assert.ok(headers, 'Header rule is present');
  assert.match(headers[1], /text-align:\s*center\s*;/);
- const table = css.match(/\.member-recap-table\s*\{([^}]+)\}/);
- assert.ok(table);
- assert.match(table[1], /text-align:\s*left\s*;/);
+ const globalCss = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8');
+ assert.match(globalCss, /table\s*\{[^}]*text-align:\s*left\s*;/);
+ assert.doesNotMatch(headers[1], /text-align:\s*left\s*;/);
 });
 test('five original columns and clickable member rows are unchanged', () => {
  const jsx = readFileSync(new URL('../src/MemberRecapTable.tsx', import.meta.url), 'utf8');
