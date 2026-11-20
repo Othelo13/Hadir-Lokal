@@ -10,7 +10,7 @@
 .member-recap-table tbody tr[role="button"]:hover { background:#f5f9ef; }
 .member-recap-table tbody tr[role="button"]:focus-visible { outline:3px solid #8da766; outline-offset:-3px; }
 .member-recap-modal { max-height:calc(100dvh - 34px); overflow:auto; }
-.member-recap-totals { display:grid; grid-template-columns:repeat(5,minmax(0,1fr));gap:8px; }
+.member-recap-totals { display:grid; grid-template-columns:repeat(4,minmax(0,1fr));gap:8px; }
 .member-recap-totals>div { display:grid; gap:8px; padding:12px 9px; border:1px solid var(--line); border-radius:9px; background:#f8faf4; }
 .member-recap-totals small { font-size:10px; color:var(--muted); }
 .member-recap-totals strong { font-size:19px; color:var(--green); font-variant-numeric:tabular-nums; }

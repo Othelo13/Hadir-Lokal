@@ -53,7 +53,7 @@ function MemberPeriodDetail({member,recap,officeToday,onClose,onChanged}:{
     </div>
     <div className="member-recap-totals">
      {([['Hadir',member.present],['Tidak hadir',member.absent],['Izin',member.leave],
-      ['Sakit',member.sick],['Perlu tinjauan',member.pending]] as const).map(([label,total])=>
+      ['Sakit',member.sick]] as const).map(([label,total])=>
       <div key={label}><small>{label}</small><strong>{total}</strong></div>)}
     </div>
     <section className="daily-recap-detail-section">
@@ -157,7 +157,7 @@ export default function MemberRecapTable({officeToday}:{officeToday:string}) {
    <div className="table-wrap member-recap-wrap">
     <table className="member-recap-table" aria-label="Jumlah hari kehadiran setiap anggota magang">
      <thead><tr>
-      <th>Anggota</th><th>Hadir</th><th>Tidak hadir</th><th>Izin</th><th>Sakit</th><th>Perlu tinjauan</th>
+      <th>Anggota</th><th>Hadir</th><th>Tidak hadir</th><th>Izin</th><th>Sakit</th>
      </tr></thead>
      <tbody>{recap.rows.map(row=><tr key={row.userId} role="button" tabIndex={0}
       aria-label={'Buka detail rekap '+row.name}
@@ -171,7 +171,6 @@ export default function MemberRecapTable({officeToday}:{officeToday:string}) {
       <td><span className="member-cell-label">Tidak hadir</span><strong>{row.absent}</strong></td>
       <td><span className="member-cell-label">Izin</span><strong>{row.leave}</strong></td>
       <td><span className="member-cell-label">Sakit</span><strong>{row.sick}</strong></td>
-      <td><span className="member-cell-label">Perlu tinjauan</span><strong>{row.pending}</strong></td>
      </tr>)}</tbody>
     </table>
    </div>
