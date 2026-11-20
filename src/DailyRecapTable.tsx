@@ -38,13 +38,8 @@ export function DailyRecapTableView({
       <div className="daily-recap-head">
         <div>
           <h2>Rekap kehadiran</h2>
-          <p>Satu anggota per tanggal, sesuai bukti absensi dan riwayat kantor.</p>
         </div>
         <div className="daily-recap-head-actions">
-          <span className="daily-recap-date">
-            <CalendarDays size={15} aria-hidden="true" />
-            {recap?.date ?? (selectedDate || serverDate || 'Tanggal kantor')}
-          </span>
           <button type="button" className="button" onClick={refresh} disabled={loading}>
             <RefreshCw size={15} aria-hidden="true" /> Perbarui
           </button>
