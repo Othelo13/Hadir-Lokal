@@ -76,7 +76,12 @@ export function memberPeriodRecap(sqlite,selection={},now=new Date()){
    const hasDetail=!!day;
    let state='not-applicable',late=false;
    const pendingRequest=pendingDays.has(JSON.stringify([member.userId,date]));
-   if(context.coverage!=='complete'||context.workday===null)state='unknown';
+   // Trusted recorded evidence survives partial migration-day coverage;
+   // missing attendance never becomes absent without full coverage.
+   if(day?.eligible===true&&day.status&&day.issues.length===0&&!day.provisional){
+    if(day.status==='present'||day.status==='late'){state='present';late=day.status==='late';}
+    else if(day.status==='leave'||day.status==='sick')state=day.status;
+   }else if(context.coverage!=='complete'||context.workday===null)state='unknown';
    else if(context.workday===false)state='off';
    else if(!day||day.eligible!==true)state='not-applicable';
    else if(day.issues.length||day.provisional||(pendingRequest&&!day.status))state='pending';
