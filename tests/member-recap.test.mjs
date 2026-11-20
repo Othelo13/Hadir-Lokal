@@ -105,3 +105,54 @@ test('live active admin session is required for month summary',t=>{
  assert.throws(()=>handleMemberRecap(f.db,'admin','POST',new URLSearchParams(),f.auth),{status:405});
  assert.equal(f.db.prepare('PRAGMA quick_check').get().quick_check,'ok');
 });
+
+test('daily period reports selected date and one day for each active intern',t=>{
+ const f=fixture(t);f.attendance('alice','2026-11-18','late');
+ const r=f.read({period:'day',date:'2026-11-18'});
+ assert.equal(r.period,'day');assert.equal(r.startDate,'2026-11-18');
+ assert.equal(r.endDate,'2026-11-18');assert.equal(r.rows.length,2);
+ assert.deepEqual([r.rows[0].present,r.rows[0].late,r.rows[0].absent],[1,1,0]);
+ assert.deepEqual(r.rows[0].days,[{date:'2026-11-18',state:'present',late:true,hasDetail:true}]);
+ assert.equal(r.rows[1].absent,1);
+});
+test('weekly period spans Monday through Sunday even across calendar months',t=>{
+ const f=fixture(t);
+ const current=f.read({period:'week',date:'2026-11-20'});
+ assert.deepEqual([current.startDate,current.endDate],['2026-11-16','2026-11-22']);
+ assert.equal(current.rows[0].days.length,7);
+ assert.equal(current.rows[0].days.find(d=>d.date==='2026-11-20').state,'ongoing');
+ assert.equal(current.rows[0].days.find(d=>d.date==='2026-11-22').state,'future');
+ const cross=f.read({period:'week',date:'2026-11-01'});
+ assert.deepEqual([cross.startDate,cross.endDate],['2026-10-26','2026-11-01']);
+});
+test('weekly and monthly totals agree for fully covered workdays',t=>{
+ const f=fixture(t);
+ f.attendance('alice','2026-11-18','late');
+ f.absence('alice','2026-11-19','leave');
+ const week=f.read({period:'week',date:'2026-11-20'});
+ const month=f.read({period:'month',month:'2026-11'});
+ assert.deepEqual([week.rows[0].present,week.rows[0].late,week.rows[0].leave,week.rows[0].absent],
+  [month.rows[0].present,month.rows[0].late,month.rows[0].leave,month.rows[0].absent]);
+});
+test('pending approvals are not reclassified as absent in a single day',t=>{
+ const f=fixture(t);f.absence('bob','2026-11-18','sick','pending');
+ const day=f.read({period:'day',date:'2026-11-18'});
+ const bob=day.rows.find(row=>row.userId==='bob');
+ assert.equal(bob.pending,1);assert.equal(bob.absent,0);
+ assert.equal(bob.days[0].state,'pending');
+});
+test('historical coverage before migration never creates a false absence',t=>{
+ const f=fixture(t);
+ const result=f.read({period:'day',date:'2026-11-16'});
+ assert.equal(result.unverifiedDates,1);
+ assert.equal(result.rows[0].absent,0);
+ assert.equal(result.rows[0].days[0].state,'unknown');
+});
+test('malformed period parameters and cross-mode filters fail before reporting',t=>{
+ const f=fixture(t);
+ for(const params of [
+  {period:'quarter'},{period:'day',date:'2026-02-30'},
+  {period:'week',month:'2026-11'},{period:'month',date:'2026-11-20'},
+  {period:['day','month']},{period:'week',date:'9999-01-01'},
+ ])assert.throws(()=>f.read(params),{status:400});
+});
