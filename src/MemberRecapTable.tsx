@@ -88,7 +88,8 @@ function MemberPeriodDetail({member,recap,officeToday,onClose,onChanged}:{
           day.state==='present'?(day.late?'late':'present'):
           day.state==='leave'?'leave':day.state==='sick'?'sick':
           day.state==='absent'?'danger':'none'
-         )}>{day.late?'Terlambat':labels[day.state]}</span></td>
+         )}>{day.late?'Terlambat':labels[day.state]}</span>
+         {day.historicalEvidenceOnly&&<small className="member-recap-muted" title="Catatan valid; riwayat jadwal dan keanggotaan pada tanggal ini belum lengkap.">Berdasarkan catatan tersimpan</small>}</td>
         </tr>)}
        </tbody>
       </table>
@@ -220,7 +221,7 @@ export default function MemberRecapTable({officeToday}:{officeToday:string}) {
     </div>
    </div>
    <p className="member-recap-footnote">
-    Hadir mencakup tepat waktu dan terlambat. Tidak hadir hanya dihitung pada hari kerja yang sudah selesai dengan riwayat lengkap. Klik baris anggota untuk melihat rincian setiap tanggal.
+    Hadir mencakup absensi disetujui, termasuk catatan sebelum riwayat jadwal tersedia. Tidak hadir hanya dihitung pada hari kerja yang sudah selesai dengan riwayat lengkap. Klik baris anggota untuk melihat rincian per tanggal.
    </p>
   </>}
  </section>
