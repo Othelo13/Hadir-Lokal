@@ -41,6 +41,10 @@ export function memberMonthlyRecap(sqlite,month,now=new Date()){
   userId:member.user_id,name:member.name,email:member.email,
   present:0,late:0,absent:0,leave:0,sick:0,pending:0,
  }]));
+ const pendingDays=new Set(sqlite.prepare(`SELECT r.user_id,day.date
+  FROM absence_request_days day JOIN absence_requests r ON r.id=day.request_id
+  WHERE day.date>=? AND day.date<=? AND r.status='pending'`)
+  .all(month+'-01',month+'-31').map(r=>JSON.stringify([r.user_id,r.date])));
  let completedDays=0,verifiedWorkdays=0,unverifiedDates=0;
  for(const date of monthDates(month)){
   if(date>today)continue;
@@ -53,6 +57,9 @@ export function memberMonthlyRecap(sqlite,month,now=new Date()){
    const member=rows.get(day.userId);
    if(!member||day.eligible!==true||context.workday!==true)continue;
    if(day.issues.length||day.provisional){
+    member.pending++;continue;
+   }
+   if(pendingDays.has(JSON.stringify([day.userId,date])) && !day.status){
     member.pending++;continue;
    }
    if(day.status==='present'){member.present++;continue;}
