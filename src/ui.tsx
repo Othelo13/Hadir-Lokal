@@ -1,5 +1,5 @@
 import PasswordInput from './PasswordInput';
-import DailyRecapTable from './DailyRecapTable';
+import MemberRecapTable from './MemberRecapTable';
 import { buildAttendanceExcel } from './excel-export';
 import { paginate } from './pagination';
 import { useEffect, useRef, useState } from 'react';
@@ -460,7 +460,7 @@ export default function Dashboard() {
   const titles: any = {
     overview: 'Ringkasan',
     attendance: 'Absensi saya',
-    recap: 'Rekap absensi harian',
+    recap: 'Rekap absensi',
     history: admin ? 'Riwayat & ekspor' : 'Riwayat absensi',
     members: 'Anggota magang',
     qr: 'QR kantor',
@@ -682,7 +682,7 @@ export default function Dashboard() {
                   : tab === 'attendance'
                     ? 'Ambil selfie bersama QR kantor untuk mencatat kehadiranmu.'
                     : tab === 'recap'
-                      ? 'Rekap harian anggota berdasarkan catatan dan jadwal historis.'
+                      ? 'Ringkasan jumlah hari hadir, tidak hadir, izin, dan sakit setiap anggota magang.'
                     : tab === 'qr'
                       ? 'Buat, cetak, dan kelola QR yang ditempel di kantor.'
                       : tab === 'members'
@@ -981,7 +981,7 @@ export default function Dashboard() {
               </section>
             </div>
           )}
-          {admin && tab === 'recap' && <DailyRecapTable key={data.me.user_id} officeToday={data.today.date} />}
+          {admin && tab === 'recap' && <MemberRecapTable key={data.me.user_id} officeToday={data.today.date} onHistory={() => setTab('history')} />}
           {tab === 'history' && (
             <>
               <section className="panel">
