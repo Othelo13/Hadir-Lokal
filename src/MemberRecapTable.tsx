@@ -154,7 +154,7 @@ export default function MemberRecapTable({officeToday}:{officeToday:string}) {
     Ada {recap.unverifiedDates} tanggal dengan cakupan riwayat belum lengkap.
     Tanggal tersebut tidak otomatis dihitung sebagai tidak hadir.
    </p>}
-   <div className="table-wrap member-recap-wrap">
+   <div className="table-wrap member-recap-wrap" role="region" aria-label="Tabel rekap anggota, gulir horizontal jika diperlukan" tabIndex={0}>
     <table className="member-recap-table" aria-label="Jumlah hari kehadiran setiap anggota magang">
      <thead><tr>
       <th>Anggota</th><th>Hadir</th><th>Tidak hadir</th><th>Izin</th><th>Sakit</th>
@@ -178,18 +178,23 @@ export default function MemberRecapTable({officeToday}:{officeToday:string}) {
     <Users size={30} aria-hidden="true"/><h3>Tidak ada anggota magang</h3>
     <p>Tambahkan akun anggota magang atau ubah pencarian.</p>
    </div>}
-   <div className="daily-recap-footer">
-    <span>Menampilkan {start}–{end} dari {recap.total} anggota</span>
-    <div className="daily-recap-pages">
-     <label>Baris <select value={pageSize} aria-label="Jumlah anggota per halaman"
-      onChange={e=>{setSelected(null);setPageSize(Number(e.target.value) as 10|20|50);setPage(1);}}>
-      <option value={10}>10</option><option value={20}>20</option><option value={50}>50</option>
-     </select></label>
-     <nav aria-label="Navigasi halaman rekap anggota">
-      <button type="button" aria-label="Halaman sebelumnya" disabled={page<=1}
+   <div className="table-footer history-pagination member-recap-pagination">
+    <div className="history-pagination-info">
+     <span>Menampilkan {start}–{end} dari {recap.total} anggota</span>
+    </div>
+    <div className="history-pagination-controls">
+     <label className="history-page-size">
+      Baris
+      <select value={pageSize} aria-label="Jumlah anggota per halaman"
+       onChange={e=>{setSelected(null);setPageSize(Number(e.target.value) as 10|20|50);setPage(1);}}>
+       <option value={10}>10</option><option value={20}>20</option><option value={50}>50</option>
+      </select>
+     </label>
+     <nav className="history-page-nav" aria-label="Navigasi halaman rekap anggota">
+      <button type="button" className="history-page-button" aria-label="Halaman sebelumnya" disabled={page<=1}
        onClick={()=>{setSelected(null);setPage(p=>p-1);}}><ChevronLeft size={16}/></button>
       <span>Halaman {recap.page} dari {recap.totalPages}</span>
-      <button type="button" aria-label="Halaman berikutnya" disabled={page>=recap.totalPages}
+      <button type="button" className="history-page-button" aria-label="Halaman berikutnya" disabled={page>=recap.totalPages}
        onClick={()=>{setSelected(null);setPage(p=>p+1);}}><ChevronRight size={16}/></button>
      </nav>
     </div>

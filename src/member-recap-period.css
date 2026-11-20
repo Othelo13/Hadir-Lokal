@@ -18,7 +18,6 @@
 .member-recap-day { display:grid; grid-template-columns:1fr 1.5fr auto; align-items:center; gap:10px; border-bottom:1px solid var(--line); padding:7px 0; font-size:11px; }
 .member-recap-day>span:last-child { min-width:75px; text-align:right; }
 @media(max-width:760px){
- .member-recap-table { min-width:0; }
  .member-recap-modal { padding:16px; }
  .member-recap-totals { grid-template-columns:repeat(3,minmax(0,1fr)); }
  .member-recap-day { grid-template-columns:1fr 1.1fr auto; gap:6px; }
@@ -27,4 +26,53 @@
  .member-recap-totals { grid-template-columns:repeat(2,minmax(0,1fr)); }
  .member-recap-day { grid-template-columns:1fr 1fr; }
  .member-recap-day>span:last-child,.member-recap-day>button:last-child { grid-column:1/-1; justify-self:start; }
+}
+
+/* Match Riwayat & ekspor: scale, table rhythm, avatar, pagination. */
+.member-recap .member-recap-wrap { overflow-x: auto; padding: 0; }
+.member-recap-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  table-layout: auto;
+  white-space: nowrap;
+  font-size: 11px;
+  text-align: left;
+}
+.member-recap-table thead {
+  background: #fafbf7;
+  color: #8a9484;
+  font-size: 8px;
+  letter-spacing: 1px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+.member-recap-table th {
+  font-weight: 500;
+  padding: 15px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.member-recap-table td {
+  padding: 16px 20px;
+  border-bottom: 1px solid #eff1e9;
+  color: #77816e;
+}
+.member-recap-table tbody tr:last-child td { border-bottom: 0; }
+.member-recap-table .person { gap: 10px; align-items: center; }
+.member-recap-table .person .avatar { width: 30px; height: 30px; font-size: 9px; flex: 0 0 30px; }
+.member-recap-table .person strong { font-size: 11px; font-weight: 500; color: #3b4939; }
+.member-recap-table .person small { font-size: 9px; margin-top: 3px; color: #77816e; }
+.member-recap-table td:not(:first-child) { font-variant-numeric: tabular-nums; }
+.member-recap-table td:not(:first-child) > strong { font-size: 11px; font-weight: 500; color: #4a5943; }
+.member-recap-table .member-recap-muted { font-size: 9px; margin-top: 3px; }
+.member-recap-table tbody tr[role="button"]:hover { background: #f8faf4; }
+.member-recap-table tbody tr[role="button"]:focus-visible { outline: 2px solid #8da766; outline-offset: -3px; }
+.member-recap-pagination { padding: 16px 20px; font-size: 10px; color: #94a085; }
+.member-recap-pagination .history-page-nav { color: var(--ink); }
+.member-recap-pagination .history-page-size select { border: 1px solid var(--line); border-radius: 7px; background: #fff; }
+.member-recap-footnote { border-top: 1px solid var(--line); padding: 12px 20px 16px; color: #94a085; font-size: 10px; line-height: 1.5; }
+@media (max-width: 760px) {
+  .member-recap .member-recap-wrap { overflow-x: auto; }
+  .member-recap-table { min-width: 760px; }
+  .member-recap-footnote { padding: 12px 20px 16px; }
 }
