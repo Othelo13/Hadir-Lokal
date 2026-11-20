@@ -62,9 +62,24 @@ export function memberPeriodRecap(sqlite,selection={},now=new Date()){
   FROM absence_request_days day JOIN absence_requests r ON r.id=day.request_id
   WHERE day.date>=? AND day.date<=? AND r.status='pending'`)
   .all(dates[0],dates.at(-1)).map(r=>JSON.stringify([r.user_id,r.date])));
+ // Only stored attendance, cancellations or absence requests belong in
+ // the detail table. Generated roster/workdays still drive numeric totals.
+ const recordedDates=new Set(sqlite.prepare(`SELECT user_id,date FROM records
+  WHERE date BETWEEN ? AND ?
+  UNION SELECT user_id,date FROM attendance_cancellations
+  WHERE date BETWEEN ? AND ?
+  UNION SELECT r.user_id,day.date FROM absence_request_days day
+   JOIN absence_requests r ON r.id=day.request_id
+  WHERE day.date BETWEEN ? AND ?`).all(
+   dates[0],dates.at(-1),dates[0],dates.at(-1),dates[0],dates.at(-1),
+  ).map(row=>JSON.stringify([row.user_id,row.date])));
  let completedDays=0,verifiedWorkdays=0,unverifiedDates=0;
  for(const date of dates){
-  if(date>today){for(const member of rows.values())member.days.push({date,state:'future',late:false,hasDetail:false,checkIn:null,checkOut:null});continue;}
+  if(date>today){
+   for(const member of rows.values())if(recordedDates.has(JSON.stringify([member.userId,date])))
+    member.days.push({date,state:'future',late:false,hasDetail:false,checkIn:null,checkOut:null});
+   continue;
+  }
   const {context,rows:daily}=historicalDailyRecap(sqlite,date,now);
   const finished=date<today;
   if(finished)completedDays++;
@@ -73,7 +88,8 @@ export function memberPeriodRecap(sqlite,selection={},now=new Date()){
   const byId=new Map(daily.map(day=>[day.userId,day]));
   for(const member of rows.values()){
    const day=byId.get(member.userId);
-   const hasDetail=!!day;
+   const hasStoredData=recordedDates.has(JSON.stringify([member.userId,date]));
+   const hasDetail=hasStoredData&&!!day;
    let state='not-applicable',late=false;
    const pendingRequest=pendingDays.has(JSON.stringify([member.userId,date]));
    // Trusted recorded evidence survives partial migration-day coverage;
@@ -91,7 +107,7 @@ export function memberPeriodRecap(sqlite,selection={},now=new Date()){
    else if(finished)state='absent';
    // Only expose clock instants and their historical zone, never record IDs or file keys.
    const safeTime=event=>event?{time:event.time,timezone:event.timezone??null}:null;
-   member.days.push({date,state,late,hasDetail,
+   if(hasStoredData)member.days.push({date,state,late,hasDetail,
     checkIn:safeTime(day?.checkIn),checkOut:safeTime(day?.checkOut)});
    if(state==='present'){member.present++;if(late)member.late++;}
    else if(state==='absent')member.absent++;

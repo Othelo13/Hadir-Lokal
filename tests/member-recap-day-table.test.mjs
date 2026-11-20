@@ -44,11 +44,9 @@ test('sanitized check-in/check-out times are displayed in historical office time
 });
 test('missing and future timestamps stay empty, no invented clock values',t=>{
  const f=fixture(t);
- const missing=f.read('2026-11-19').rows[0].days[0];
- assert.equal(missing.checkIn,null);assert.equal(missing.checkOut,null);
- assert.equal(formatRecapTime(missing.checkIn),'—');
- const future=f.read('2026-11-25').rows[0].days[0];
- assert.equal(future.state,'future');assert.equal(future.checkIn,null);assert.equal(future.checkOut,null);
+ assert.equal(f.read('2026-11-19').rows[0].days.length,0);
+ assert.equal(f.read('2026-11-25').rows[0].days.length,0);
+ assert.equal(formatRecapTime(null),'—');
 });
 test('pending check-in timestamp does not turn pending review into confirmed presence',t=>{
  const f=fixture(t),date='2026-11-18';
@@ -67,4 +65,46 @@ test('detail table shows four requested headers and retains keyboard-openable da
  assert.match(jsx,/onClick=\{day\.hasDetail\?\(\)=>setSelectedDay\(day\.date\):undefined\}/);
  assert.match(css,/\.member-recap-day-table thead/);
  assert.doesNotMatch(jsx,/className="member-recap-day-list"/);
+});
+
+test('completed unsaved workdays increase absent totals without appearing in recorded-day detail',t=>{
+ const f=fixture(t);
+ const summary=f.read('2026-11-19').rows[0];
+ assert.equal(summary.absent,1);
+ assert.deepEqual(summary.days,[]);
+});
+test('approved leave and pending request dates appear as stored detail rows',t=>{
+ const f=fixture(t),date='2026-11-18';
+ f.db.exec(`INSERT INTO absence_requests(id,user_id,name_snapshot,email_snapshot,type,start_date,end_date,reason,status,office_timezone,schedule_snapshot,created_at,updated_at)
+ VALUES('leave-1','intern','Intern','intern@example.invalid','leave','2026-11-18','2026-11-18','private','approved','Asia/Makassar','[1,2,3,4,5]','2026-11-17T01:00:00Z','2026-11-17T01:00:00Z');
+ INSERT INTO absence_request_days VALUES('leave-1','2026-11-18');
+ INSERT INTO absence_day_reservations VALUES('intern','2026-11-18','leave-1');`);
+ const approved=f.read(date).rows[0];
+ assert.equal(approved.leave,1);assert.deepEqual(approved.days.map(x=>x.date),[date]);
+ assert.equal(approved.days[0].state,'leave');
+ const another='2026-11-19';
+ f.db.exec(`INSERT INTO absence_requests(id,user_id,name_snapshot,email_snapshot,type,start_date,end_date,reason,status,office_timezone,schedule_snapshot,created_at,updated_at)
+ VALUES('pending-1','intern','Intern','intern@example.invalid','sick','2026-11-19','2026-11-19','private','pending','Asia/Makassar','[1,2,3,4,5]','2026-11-18T01:00:00Z','2026-11-18T01:00:00Z');
+ INSERT INTO absence_request_days VALUES('pending-1','2026-11-19');`);
+ const pending=f.read(another).rows[0];
+ assert.equal(pending.pending,1);assert.deepEqual(pending.days.map(x=>x.date),[another]);
+ assert.equal(pending.days[0].state,'pending');
+});
+test('cancelled attendance has real audit evidence and remains visible without active time',t=>{
+ const f=fixture(t),date='2026-11-18';
+ f.db.prepare(`INSERT INTO attendance_cancellations
+ (id,user_id,email,name,date,kind,time,reason,cancelled_by,cancelled_at)
+ VALUES (?,?,?,?,?,?,?,?,?,?)`).run(
+ 'cancel-1','intern','intern@example.invalid','Intern',date,'in',
+ date+'T01:00:00Z','Audit reason','admin','2026-11-18T10:00:00Z');
+ const detail=f.read(date).rows[0];
+ assert.equal(detail.absent,1); // unchanged classification
+ assert.equal(detail.days.length,1);assert.equal(detail.days[0].hasDetail,true);
+ assert.equal(detail.days[0].checkIn,null);
+ assert.equal(JSON.stringify(detail).includes('Audit reason'),false);
+});
+test('empty detail displays a table empty state and not generated date rows',()=>{
+ const jsx=readFileSync(new URL('../src/MemberRecapTable.tsx',import.meta.url),'utf8');
+ assert.match(jsx,/member\.days\.length===0/);
+ assert.match(jsx,/Belum ada catatan absensi, izin, atau sakit pada periode ini/);
 });

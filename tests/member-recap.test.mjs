@@ -124,9 +124,8 @@ test('weekly period spans Monday through Sunday even across calendar months',t=>
  const f=fixture(t);
  const current=f.read({period:'week',date:'2026-11-20'});
  assert.deepEqual([current.startDate,current.endDate],['2026-11-16','2026-11-22']);
- assert.equal(current.rows[0].days.length,7);
- assert.equal(current.rows[0].days.find(d=>d.date==='2026-11-20').state,'ongoing');
- assert.equal(current.rows[0].days.find(d=>d.date==='2026-11-22').state,'future');
+ assert.equal(current.rows[0].days.length,0); // no recorded evidence, despite seven calendar days
+ assert.equal(current.rows[0].absent,2); // full-coverage missing days still contribute to totals
  const cross=f.read({period:'week',date:'2026-11-01'});
  assert.deepEqual([cross.startDate,cross.endDate],['2026-10-26','2026-11-01']);
 });
@@ -151,7 +150,7 @@ test('historical coverage before migration never creates a false absence',t=>{
  const result=f.read({period:'day',date:'2026-11-16'});
  assert.equal(result.unverifiedDates,1);
  assert.equal(result.rows[0].absent,0);
- assert.equal(result.rows[0].days[0].state,'unknown');
+ assert.equal(result.rows[0].days.length,0); // no stored data on unknown historical day
 });
 test('malformed period parameters and cross-mode filters fail before reporting',t=>{
  const f=fixture(t);

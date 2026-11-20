@@ -69,7 +69,11 @@ function MemberPeriodDetail({member,recap,officeToday,onClose,onChanged}:{
         <th scope="col">Status</th>
        </tr></thead>
        <tbody>
-        {member.days.map(day=><tr key={day.date}
+        {member.days.length===0?<tr>
+         <td colSpan={4} className="member-recap-day-empty">
+          Belum ada catatan absensi, izin, atau sakit pada periode ini.
+         </td>
+        </tr>:member.days.map(day=><tr key={day.date}
          className={day.hasDetail?'member-recap-day-clickable':undefined}
          role={day.hasDetail?'button':undefined} tabIndex={day.hasDetail?0:undefined}
          aria-label={day.hasDetail?'Buka detail absensi '+day.date:undefined}
