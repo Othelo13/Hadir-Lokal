@@ -112,7 +112,12 @@ test('daily period reports selected date and one day for each active intern',t=>
  assert.equal(r.period,'day');assert.equal(r.startDate,'2026-11-18');
  assert.equal(r.endDate,'2026-11-18');assert.equal(r.rows.length,2);
  assert.deepEqual([r.rows[0].present,r.rows[0].late,r.rows[0].absent],[1,1,0]);
- assert.deepEqual(r.rows[0].days,[{date:'2026-11-18',state:'present',late:true,hasDetail:true}]);
+ assert.equal(r.rows[0].days.length,1);
+ const aliceDay=r.rows[0].days[0];
+ assert.deepEqual({date:aliceDay.date,state:aliceDay.state,late:aliceDay.late,hasDetail:aliceDay.hasDetail},
+  {date:'2026-11-18',state:'present',late:true,hasDetail:true});
+ assert.equal(aliceDay.checkIn?.time,'2026-11-18T01:00:00Z');
+ assert.equal(aliceDay.checkOut,null);
  assert.equal(r.rows[1].absent,1);
 });
 test('weekly period spans Monday through Sunday even across calendar months',t=>{

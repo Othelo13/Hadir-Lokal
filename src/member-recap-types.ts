@@ -1,6 +1,10 @@
 export type MemberRecapPeriod = 'day' | 'week' | 'month';
 export type MemberRecapDayState = 'present' | 'absent' | 'leave' | 'sick' | 'pending' | 'ongoing' | 'off' | 'future' | 'unknown' | 'not-applicable';
-export interface MemberRecapDay { date:string;state:MemberRecapDayState;late:boolean;hasDetail:boolean; }
+export interface MemberRecapTime { time:string;timezone:string|null; }
+export interface MemberRecapDay {
+ date:string;state:MemberRecapDayState;late:boolean;hasDetail:boolean;
+ checkIn:MemberRecapTime|null;checkOut:MemberRecapTime|null;
+}
 export interface MemberRecapRow {
  userId:string;
  name:string;

@@ -13,18 +13,12 @@
 .member-recap-totals>div { display:grid; gap:8px; padding:12px 9px; border:1px solid var(--line); border-radius:9px; background:#f8faf4; }
 .member-recap-totals small { font-size:10px; color:var(--muted); }
 .member-recap-totals strong { font-size:19px; color:var(--green); font-variant-numeric:tabular-nums; }
-.member-recap-day-list { display:grid; gap:5px; }
-.member-recap-day { display:grid; grid-template-columns:1fr 1.5fr auto; align-items:center; gap:10px; border-bottom:1px solid var(--line); padding:7px 0; font-size:11px; }
-.member-recap-day>span:last-child { min-width:75px; text-align:right; }
 @media(max-width:760px){
  .member-recap-modal { padding:16px; }
  .member-recap-totals { grid-template-columns:repeat(3,minmax(0,1fr)); }
- .member-recap-day { grid-template-columns:1fr 1.1fr auto; gap:6px; }
 }
 @media(max-width:420px){
  .member-recap-totals { grid-template-columns:repeat(2,minmax(0,1fr)); }
- .member-recap-day { grid-template-columns:1fr 1fr; }
- .member-recap-day>span:last-child,.member-recap-day>button:last-child { grid-column:1/-1; justify-self:start; }
 }
 
 /* Match Riwayat & ekspor: scale, table rhythm, avatar, pagination. */
@@ -80,3 +74,34 @@
   .member-recap-table { min-width: 760px; }
   .member-recap-footnote { padding: 12px 20px 16px; }
 }
+
+/* Read-only day table: the same compact header and separators as Riwayat & ekspor. */
+.member-recap-detail-section { min-width: 0; }
+.member-recap-day-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.member-recap-day-table {
+  width: 100%; min-width: 630px;
+  border-collapse: collapse; white-space: nowrap; font-size: 11px; text-align: left;
+}
+.member-recap-day-table thead {
+  background: #fafbf7; color: #8a9484;
+  font-size: 8px; letter-spacing: 1px; font-weight: 500; text-transform: uppercase;
+}
+.member-recap-day-table th { padding: 15px 16px; font-weight: 500; border-bottom: 1px solid var(--line); }
+.member-recap-day-table td {
+  padding: 14px 16px; border-bottom: 1px solid #eff1e9;
+  color: #4a5943; font-variant-numeric: tabular-nums;
+}
+.member-recap-day-table tbody tr:last-child td { border-bottom: 0; }
+.member-recap-day-table th:not(:first-child),
+.member-recap-day-table td:not(:first-child) { text-align: center; }
+.member-recap-day-table .badge { font-size: 9px; }
+.member-recap-day-table tr.member-recap-day-clickable { cursor: pointer; }
+.member-recap-day-table tr.member-recap-day-clickable:hover { background: #f8faf4; }
+.member-recap-day-table tr.member-recap-day-clickable:focus-visible {
+  outline: 2px solid #8da766; outline-offset: -3px;
+}
+@media (max-width: 760px) { .member-recap-day-table-wrap { max-width: 100%; } }

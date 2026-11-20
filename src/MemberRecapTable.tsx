@@ -3,6 +3,7 @@ import './member-recap-period.css';
 import { ChevronLeft, ChevronRight, RefreshCw, Search, Users, X } from 'lucide-react';
 import { getMemberRecap } from './member-recap-api';
 import DailyRecapDetail from './DailyRecapDetail';
+import { formatRecapTime } from './recap-presentation';
 import type { MemberRecapDay, MemberRecapPeriod, MemberRecapResponse, MemberRecapRow } from './member-recap-types';
 
 const labels: Record<MemberRecapDay['state'],string> = {
@@ -56,15 +57,37 @@ function MemberPeriodDetail({member,recap,officeToday,onClose,onChanged}:{
       ['Sakit',member.sick]] as const).map(([label,total])=>
       <div key={label}><small>{label}</small><strong>{total}</strong></div>)}
     </div>
-    <section className="daily-recap-detail-section">
+    <section className="daily-recap-detail-section member-recap-detail-section" aria-label="Rincian absensi per tanggal">
      <h3>Rincian per tanggal</h3>
-     <p>Tekan tanggal yang memiliki rincian untuk melihat bukti absensi atau melakukan tindakan admin.</p>
-     <div className="member-recap-day-list">
-      {member.days.map(day=><div className="member-recap-day" key={day.date}>
-       <span>{day.date}</span><span>{labels[day.state]}{day.late?' (terlambat)':''}</span>
-       {day.hasDetail?<button type="button" className="daily-recap-view-button"
-        onClick={()=>setSelectedDay(day.date)}>Lihat detail</button>:<span>—</span>}
-      </div>)}
+     <p>Klik baris tanggal untuk melihat bukti absensi atau tindakan admin jika rincian tersedia.</p>
+     <div className="table-wrap member-recap-day-table-wrap" role="region" aria-label="Tabel rincian kehadiran anggota" tabIndex={0}>
+      <table className="member-recap-day-table">
+       <thead><tr>
+        <th scope="col">Tanggal</th>
+        <th scope="col">Waktu absen masuk</th>
+        <th scope="col">Waktu absen keluar</th>
+        <th scope="col">Status</th>
+       </tr></thead>
+       <tbody>
+        {member.days.map(day=><tr key={day.date}
+         className={day.hasDetail?'member-recap-day-clickable':undefined}
+         role={day.hasDetail?'button':undefined} tabIndex={day.hasDetail?0:undefined}
+         aria-label={day.hasDetail?'Buka detail absensi '+day.date:undefined}
+         onClick={day.hasDetail?()=>setSelectedDay(day.date):undefined}
+         onKeyDown={day.hasDetail?event=>{
+          if(event.key==='Enter'||event.key===' '){event.preventDefault();setSelectedDay(day.date);}
+         }:undefined}>
+         <td>{day.date}</td>
+         <td>{formatRecapTime(day.checkIn)}</td>
+         <td>{formatRecapTime(day.checkOut)}</td>
+         <td><span className={'badge daily-recap-status '+(
+          day.state==='present'?(day.late?'late':'present'):
+          day.state==='leave'?'leave':day.state==='sick'?'sick':
+          day.state==='absent'?'danger':'none'
+         )}>{day.late?'Terlambat':labels[day.state]}</span></td>
+        </tr>)}
+       </tbody>
+      </table>
      </div>
     </section>
    </section>

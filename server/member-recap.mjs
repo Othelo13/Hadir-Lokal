@@ -64,7 +64,7 @@ export function memberPeriodRecap(sqlite,selection={},now=new Date()){
   .all(dates[0],dates.at(-1)).map(r=>JSON.stringify([r.user_id,r.date])));
  let completedDays=0,verifiedWorkdays=0,unverifiedDates=0;
  for(const date of dates){
-  if(date>today){for(const member of rows.values())member.days.push({date,state:'future',late:false,hasDetail:false});continue;}
+  if(date>today){for(const member of rows.values())member.days.push({date,state:'future',late:false,hasDetail:false,checkIn:null,checkOut:null});continue;}
   const {context,rows:daily}=historicalDailyRecap(sqlite,date,now);
   const finished=date<today;
   if(finished)completedDays++;
@@ -89,7 +89,10 @@ export function memberPeriodRecap(sqlite,selection={},now=new Date()){
    else if(day.status==='leave'||day.status==='sick')state=day.status;
    else if(date===today)state='ongoing';
    else if(finished)state='absent';
-   member.days.push({date,state,late,hasDetail});
+   // Only expose clock instants and their historical zone, never record IDs or file keys.
+   const safeTime=event=>event?{time:event.time,timezone:event.timezone??null}:null;
+   member.days.push({date,state,late,hasDetail,
+    checkIn:safeTime(day?.checkIn),checkOut:safeTime(day?.checkOut)});
    if(state==='present'){member.present++;if(late)member.late++;}
    else if(state==='absent')member.absent++;
    else if(state==='leave')member.leave++;
