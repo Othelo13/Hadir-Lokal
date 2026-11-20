@@ -18,6 +18,8 @@ function MemberPeriodDetail({member,recap,officeToday,onClose,onChanged}:{
  member:MemberRecapRow;recap:MemberRecapResponse;officeToday:string;onClose:()=>void;onChanged:()=>void;
 }) {
  const [selectedDay,setSelectedDay]=useState<string|null>(null);
+ const selectedDayRef=useRef<string|null>(null);
+ selectedDayRef.current=selectedDay;
  const closeRef=useRef<HTMLButtonElement>(null);
  const dialogRef=useRef<HTMLElement>(null);
  useEffect(()=>{
@@ -26,8 +28,8 @@ function MemberPeriodDetail({member,recap,officeToday,onClose,onChanged}:{
   document.body.style.overflow='hidden';
   closeRef.current?.focus();
   const onKey=(event:KeyboardEvent)=>{
-   if(event.key==='Escape'){event.preventDefault();onClose();}
-   if(event.key!=='Tab')return;
+   if(event.key==='Escape'){if(selectedDayRef.current)return;event.preventDefault();onClose();}
+   if(selectedDayRef.current||event.key!=='Tab')return;
    const nodes=Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])')??[])
     .filter(node=>node.getClientRects().length>0);
    if(!nodes.length){event.preventDefault();dialogRef.current?.focus();return;}
@@ -39,7 +41,7 @@ function MemberPeriodDetail({member,recap,officeToday,onClose,onChanged}:{
   return ()=>{window.removeEventListener('keydown',onKey);document.body.style.overflow=overflow;if(opener?.isConnected)opener.focus();};
  },[onClose]);
  return <>
-  <div className="overlay daily-recap-overlay" onMouseDown={e=>{if(e.currentTarget===e.target)onClose();}}>
+  <div className="overlay daily-recap-overlay" onMouseDown={e=>{if(!selectedDayRef.current&&e.currentTarget===e.target)onClose();}}>
    <section ref={dialogRef} tabIndex={-1} className="modal daily-recap-modal member-recap-modal"
     role="dialog" aria-modal="true" aria-labelledby="member-recap-detail-heading">
     <div className="modal-title daily-recap-detail-header">

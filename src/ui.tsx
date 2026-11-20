@@ -981,7 +981,7 @@ export default function Dashboard() {
               </section>
             </div>
           )}
-          {admin && tab === 'recap' && <MemberRecapTable key={data.me.user_id} officeToday={data.today.date} onHistory={() => setTab('history')} />}
+          {admin && tab === 'recap' && <MemberRecapTable key={data.me.user_id} officeToday={data.today.date} />}
           {tab === 'history' && (
             <>
               <section className="panel">
