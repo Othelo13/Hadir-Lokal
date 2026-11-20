@@ -92,12 +92,13 @@ export function memberPeriodRecap(sqlite,selection={},now=new Date()){
    const hasDetail=hasStoredData&&!!day;
    let state='not-applicable',late=false;
    const pendingRequest=pendingDays.has(JSON.stringify([member.userId,date]));
-   // Trusted recorded evidence survives partial migration-day coverage;
+   // Trusted stored evidence counts even before schedule-history coverage;
    // missing attendance never becomes absent without full coverage.
-   if(day?.eligible===true&&day.status&&day.issues.length===0&&!day.provisional){
+   if((day?.eligible===true||day?.eligible===null)&&day.status&&day.issues.length===0&&!day.provisional){
     if(day.status==='present'||day.status==='late'){state='present';late=day.status==='late';}
     else if(day.status==='leave'||day.status==='sick')state=day.status;
-   }else if(context.coverage!=='complete'||context.workday===null)state='unknown';
+   }else if(hasStoredData&&(day?.issues.length||day?.provisional||(pendingRequest&&!day?.status)))state='pending';
+   else if(context.coverage!=='complete'||context.workday===null)state='unknown';
    else if(context.workday===false)state='off';
    else if(!day||day.eligible!==true)state='not-applicable';
    else if(day.issues.length||day.provisional||(pendingRequest&&!day.status))state='pending';
@@ -107,7 +108,8 @@ export function memberPeriodRecap(sqlite,selection={},now=new Date()){
    else if(finished)state='absent';
    // Only expose clock instants and their historical zone, never record IDs or file keys.
    const safeTime=event=>event?{time:event.time,timezone:event.timezone??null}:null;
-   if(hasStoredData)member.days.push({date,state,late,hasDetail,
+   const historicalEvidenceOnly=Boolean(day?.eligible===null&&day?.status&&day.issues.length===0&&!day.provisional);
+   if(hasStoredData)member.days.push({date,state,late,hasDetail,historicalEvidenceOnly,
     checkIn:safeTime(day?.checkIn),checkOut:safeTime(day?.checkOut)});
    if(state==='present'){member.present++;if(late)member.late++;}
    else if(state==='absent')member.absent++;
