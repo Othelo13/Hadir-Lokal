@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import './member-recap-period.css';
 import { CalendarDays, ChevronLeft, ChevronRight, RefreshCw, Search, Users, X } from 'lucide-react';
 import { getMemberRecap } from './member-recap-api';
 import DailyRecapDetail from './DailyRecapDetail';
