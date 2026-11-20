@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { buildRecapQuery } from '../src/recap-query.ts';
 import { getDailyRecap } from '../src/recap-api.ts';
 
-test('empty date and search delegate today's office date to server',()=>{
+test('empty date and search delegate the office date to server',()=>{
  const query=buildRecapQuery({selectedDate:'',search:'',page:1,pageSize:10});
  assert.deepEqual(query,{page:1,pageSize:10});
  assert.equal(Object.hasOwn(query,'date'),false);
