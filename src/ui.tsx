@@ -276,12 +276,14 @@ export default function Dashboard() {
       setNotice('Gagal membuat file Excel. Silakan coba kembali.');
     }
   }
-  function fmtTime(t: string) {
-    return new Date(t).toLocaleTimeString('id-ID', {
-      timeZone: data?.settings?.timezone,
+  function fmtTime(t: string, historicalZone?: string | null) {
+    const timezone = historicalZone === undefined ? data?.settings?.timezone : historicalZone;
+    const clock = new Date(t).toLocaleTimeString('id-ID', {
+      timeZone: timezone ?? 'UTC',
       hour: '2-digit',
       minute: '2-digit',
     });
+    return clock + (historicalZone === null ? ' UTC' : '');
   }
   if (!data)
     return (
@@ -537,7 +539,7 @@ export default function Dashboard() {
               <td>
                 <span className={'kind ' + r.kind}>{r.kind === 'in' ? '↘ Masuk' : '↗ Pulang'}</span>
               </td>
-              <td className="time">{fmtTime(r.time)}</td>
+              <td className="time">{fmtTime(r.time, r.timezone)}</td>
               <td>
                 <span className={'badge ' + (r.cancelled ? 'danger' : r.status === 'late' ? 'amber' : 'green')}>
                   {r.cancelled ? 'Dibatalkan' : r.status === 'late' ? 'Terlambat' : 'Tepat waktu'}
@@ -1674,7 +1676,7 @@ export default function Dashboard() {
             />
             <h3>{photo.name}</h3>
             <p>
-              {photo.date} · {fmtTime(photo.time)} · {photo.kind === 'in' ? 'Masuk' : 'Pulang'}
+              {photo.date} · {fmtTime(photo.time, photo.timezone)} · {photo.kind === 'in' ? 'Masuk' : 'Pulang'}
             </p>
             <span className="badge">{reviews[photo.review]}</span>
             {admin && (
