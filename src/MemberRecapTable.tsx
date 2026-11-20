@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import './member-recap-period.css';
-import { CalendarDays, ChevronLeft, ChevronRight, RefreshCw, Search, Users, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RefreshCw, Search, Users, X } from 'lucide-react';
 import { getMemberRecap } from './member-recap-api';
 import DailyRecapDetail from './DailyRecapDetail';
 import type { MemberRecapDay, MemberRecapPeriod, MemberRecapResponse, MemberRecapRow } from './member-recap-types';
@@ -147,13 +147,6 @@ export default function MemberRecapTable({officeToday}:{officeToday:string}) {
   </div>}
   {(loading||typing)&&<p role="status" className="daily-recap-state">Memuat rekap anggota…</p>}
   {!loading&&!typing&&!error&&recap&&<>
-   <div className="member-recap-period-caption"><CalendarDays size={15} aria-hidden="true"/>
-    Periode: {periodDescription(recap)}
-   </div>
-   {recap.unverifiedDates>0&&<p className="daily-recap-message" role="status">
-    Ada {recap.unverifiedDates} tanggal dengan cakupan riwayat belum lengkap.
-    Tanggal tersebut tidak otomatis dihitung sebagai tidak hadir.
-   </p>}
    <div className="table-wrap member-recap-wrap" role="region" aria-label="Tabel rekap anggota, gulir horizontal jika diperlukan" tabIndex={0}>
     <table className="member-recap-table" aria-label="Jumlah hari kehadiran setiap anggota magang">
      <thead><tr>
