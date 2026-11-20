@@ -1,3 +1,6 @@
+export type MemberRecapPeriod = 'day' | 'week' | 'month';
+export type MemberRecapDayState = 'present' | 'absent' | 'leave' | 'sick' | 'pending' | 'ongoing' | 'off' | 'future' | 'unknown' | 'not-applicable';
+export interface MemberRecapDay { date:string;state:MemberRecapDayState;late:boolean;hasDetail:boolean; }
 export interface MemberRecapRow {
  userId:string;
  name:string;
@@ -8,9 +11,14 @@ export interface MemberRecapRow {
  leave:number;
  sick:number;
  pending:number;
+ days:MemberRecapDay[];
 }
 export interface MemberRecapResponse {
- month:string;
+ period:MemberRecapPeriod;
+ month:string|null;
+ date:string|null;
+ startDate:string;
+ endDate:string;
  today:string;
  completedDays:number;
  verifiedWorkdays:number;
@@ -23,7 +31,9 @@ export interface MemberRecapResponse {
  totalPages:number;
 }
 export interface MemberRecapFilters {
+ period?:MemberRecapPeriod;
  month?:string;
+ date?:string;
  q?:string;
  page?:number;
  pageSize?:10|20|50;

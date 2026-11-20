@@ -2,7 +2,9 @@ import type { MemberRecapFilters,MemberRecapResponse } from './member-recap-type
 
 export async function getMemberRecap(filters:MemberRecapFilters={},signal?:AbortSignal):Promise<MemberRecapResponse>{
  const params=new URLSearchParams({action:'member-recap'});
+ if(filters.period!==undefined)params.set('period',filters.period);
  if(filters.month!==undefined)params.set('month',filters.month);
+ if(filters.date!==undefined)params.set('date',filters.date);
  if(filters.q!==undefined)params.set('q',filters.q.trim());
  if(filters.page!==undefined)params.set('page',String(filters.page));
  if(filters.pageSize!==undefined)params.set('pageSize',String(filters.pageSize));
