@@ -1,4 +1,5 @@
 import PasswordInput from './PasswordInput';
+import DailyRecapTable from './DailyRecapTable';
 import { buildAttendanceExcel } from './excel-export';
 import { paginate } from './pagination';
 import { useEffect, useRef, useState } from 'react';
@@ -445,7 +446,8 @@ export default function Dashboard() {
   const nav: any[] = [
     ['overview', 'Ringkasan', LayoutDashboard],
     ...(!admin ? [['attendance', 'Absensi saya', ScanFace]] : []),
-    ['history', admin ? 'Rekap absensi' : 'Riwayat absensi', CalendarDays],
+    ...(admin ? [['recap', 'Rekap absensi harian', CalendarDays]] : []),
+    ['history', admin ? 'Riwayat & ekspor' : 'Riwayat absensi', Clock3],
     ['account', 'Akun saya', ShieldCheck],
     ...(admin
       ? [
@@ -458,7 +460,8 @@ export default function Dashboard() {
   const titles: any = {
     overview: 'Ringkasan',
     attendance: 'Absensi saya',
-    history: admin ? 'Rekap absensi' : 'Riwayat absensi',
+    recap: 'Rekap absensi harian',
+    history: admin ? 'Riwayat & ekspor' : 'Riwayat absensi',
     members: 'Anggota magang',
     qr: 'QR kantor',
     settings: 'Pengaturan',
@@ -678,6 +681,8 @@ export default function Dashboard() {
                   ? 'Hari yang baik dimulai dengan hadir. Pantau kehadiran tim di sini.'
                   : tab === 'attendance'
                     ? 'Ambil selfie bersama QR kantor untuk mencatat kehadiranmu.'
+                    : tab === 'recap'
+                      ? 'Rekap harian anggota berdasarkan catatan dan jadwal historis.'
                     : tab === 'qr'
                       ? 'Buat, cetak, dan kelola QR yang ditempel di kantor.'
                       : tab === 'members'
@@ -746,7 +751,7 @@ export default function Dashboard() {
                   </p>
                   <button
                     className="button cream"
-                    onClick={() => setTab(admin ? 'history' : 'attendance')}
+                    onClick={() => setTab(admin ? 'recap' : 'attendance')}
                   >
                     {admin ? 'Buka rekap absensi' : 'Buka absensi saya'} <ArrowUpRight size={18} />
                   </button>
@@ -976,6 +981,7 @@ export default function Dashboard() {
               </section>
             </div>
           )}
+          {admin && tab === 'recap' && <DailyRecapTable key={data.me.user_id} />}
           {tab === 'history' && (
             <>
               <section className="panel">

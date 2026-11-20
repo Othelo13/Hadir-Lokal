@@ -1656,3 +1656,77 @@ footer > span:first-child {
     flex-wrap: wrap;
   }
 }
+
+
+/* P4 daily recap is scoped; the legacy history/export view remains intact. */
+.daily-recap-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 21px 24px;
+  border-bottom: 1px solid var(--line);
+}
+.daily-recap-head h2 { font-size: 17px; }
+.daily-recap-head p { font-size: 11px; margin-top: 6px; }
+.daily-recap-head-actions, .daily-recap-date, .daily-recap-pages, .daily-recap-pages label, .daily-recap-pages nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.daily-recap-date { font-size: 12px; color: #5d705e; }
+.daily-recap-table { min-width: 680px; }
+.daily-recap-table .person > span:last-child { min-width: 0; }
+.daily-recap-table .person small { display: block; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+.daily-recap-status.present, .daily-recap-status.leave {
+  color: #547b52;
+  border-color: #dce9d0;
+  background: #f0f6e7;
+}
+.daily-recap-status.late {
+  color: #a07b32;
+  border-color: #efe4c8;
+  background: #fbf5e7;
+}
+.daily-recap-status.sick {
+  color: #607d85;
+  border-color: #d6e5e7;
+  background: #eef5f5;
+}
+.daily-recap-status.none { color: #808980; }
+.daily-recap-state { padding: 35px 24px; }
+.daily-recap-message { margin: 18px 24px 0; padding: 12px 14px; background: #fbf5e7; border: 1px solid #efe4c8; border-radius: 7px; color: #7a642f; }
+.daily-recap-error { padding: 20px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; color: #a45540; }
+.daily-recap-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 16px 24px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  color: #758170;
+}
+.daily-recap-pages select {
+  border: 1px solid var(--line);
+  background: white;
+  border-radius: 6px;
+  padding: 7px 8px;
+}
+.daily-recap-pages nav { gap: 8px; }
+.daily-recap-pages nav button {
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: white;
+  padding: 7px;
+}
+@media (max-width: 640px) {
+  .daily-recap-head { padding: 17px; }
+  .daily-recap-footer { padding: 14px 17px; align-items: stretch; }
+  .daily-recap-pages { justify-content: space-between; width: 100%; }
+  .daily-recap-message { margin: 14px 17px 0; }
+}
