@@ -981,7 +981,7 @@ export default function Dashboard() {
               </section>
             </div>
           )}
-          {admin && tab === 'recap' && <DailyRecapTable key={data.me.user_id} />}
+          {admin && tab === 'recap' && <DailyRecapTable key={data.me.user_id} officeToday={data.today.date} />}
           {tab === 'history' && (
             <>
               <section className="panel">

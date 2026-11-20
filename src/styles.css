@@ -1830,3 +1830,19 @@ footer > span:first-child {
   .daily-recap-detail-stats strong { font-size: 17px; }
   .daily-recap-detail-body { gap: 15px; }
 }
+
+
+/* P4.5 — Explicit admin confirmations and safe mutation feedback. */
+.daily-recap-confirm { border: 1px solid #d8e5c7; background: #f5f9ef; border-radius: 9px; padding: 16px; display: grid; gap: 11px; }
+.daily-recap-confirm h3 { font-size: 14px; }
+.daily-recap-confirm p { font-size: 11px; color: #566a50; margin: 0; }
+.daily-recap-confirm label { display: grid; gap: 7px; font-size: 11px; font-weight: 600; }
+.daily-recap-confirm textarea { width: 100%; min-height: 90px; padding: 11px; border: 1px solid #cad7c2; border-radius: 7px; resize: vertical; background: #fff; color: var(--ink); }
+.daily-recap-admin-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin-top: 3px; }
+.daily-recap-admin-actions .button { font-size: 10px; padding: 8px 11px; min-height: 34px; }
+.daily-recap-admin-actions small { font-size: 10px; }
+.daily-recap-action-buttons { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+.daily-recap-confirm .button.danger, .daily-recap-admin-actions .button.danger { background: #fff2ef; color: #a4493e; border: 1px solid #d7a89f; }
+.daily-recap-confirm .button.danger:hover, .daily-recap-admin-actions .button.danger:hover { background: #ffe7e1; }
+.daily-recap-action-error { color: #a4493e !important; }
+.daily-recap-action-success { margin: 0 0 12px; border: 1px solid #d8e5c7; background: #f5f9ef; color: #477b55; border-radius: 8px; padding: 12px 14px; font-size: 12px; overflow-wrap: anywhere; }

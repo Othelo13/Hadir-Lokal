@@ -159,7 +159,7 @@ export function DailyRecapTableView({
   );
 }
 
-export default function DailyRecapTable() {
+export default function DailyRecapTable({ officeToday }: { officeToday: string }) {
   const [recap, setRecap] = useState<DailyRecapResponse | null>(null);
   const [serverDate, setServerDate] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
@@ -231,6 +231,6 @@ export default function DailyRecapTable() {
     }}
     openDetail={(date, userId) => setSelected({date, userId})}
     />
-    {selected && <DailyRecapDetail key={selected.date + ':' + selected.userId} date={selected.date} userId={selected.userId} onClose={() => setSelected(null)} />}
+    {selected && <DailyRecapDetail key={selected.date + ':' + selected.userId} date={selected.date} userId={selected.userId} officeToday={officeToday} onChanged={() => setRevision((value) => value + 1)} onClose={() => setSelected(null)} />}
   </>;
 }

@@ -1,23 +1,37 @@
 import { useEffect, useRef, useState } from 'react';
 import { CalendarDays, Download, FileText, RefreshCw, X } from 'lucide-react';
 import { getDailyRecapDetail } from './recap-api';
+import { canAuthorizeRecapRetake, canCancelRecapRecord, canReviewRecapRecord, submitRecapAction, validCancellationReason } from './recap-actions';
+import type { RecapReview } from './recap-actions';
 import { coverageMessage } from './recap-presentation';
 import { recapAbsenceLabel, recapAttachmentHref, recapAttendanceKind, recapCancellationSummary, recapDetailSummary, recapInstantLabel, recapPhotoHref, recapReviewLabel } from './recap-detail-model';
 import type { DailyRecapDetail } from './recap-types';
 
+type Confirmation =
+  | { type: 'review'; id: string; review: RecapReview; label: string }
+  | { type: 'cancel'; id: string; label: string }
+  | { type: 'retake'; id: string; label: string };
+
 interface Props {
   date: string;
   userId: string;
+  officeToday: string;
   onClose: () => void;
+  onChanged: () => void;
 }
 
-export default function DailyRecapDetail({ date, userId, onClose }: Props) {
+export default function DailyRecapDetail({ date, userId, officeToday, onClose, onChanged }: Props) {
   const [detail, setDetail] = useState<DailyRecapDetail | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [revision, setRevision] = useState(0);
   const [photoId, setPhotoId] = useState<string | null>(null);
   const [photoError, setPhotoError] = useState(false);
+  const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [actionNotice, setActionNotice] = useState('');
+  const [busy, setBusy] = useState(false);
   const closeButton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -25,9 +39,12 @@ export default function DailyRecapDetail({ date, userId, onClose }: Props) {
     document.body.style.overflow = 'hidden';
     closeButton.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !busy) {
         event.preventDefault();
-        onClose();
+        if (confirmation) {
+          setConfirmation(null);
+          setCancelReason('');
+        } else onClose();
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -35,7 +52,7 @@ export default function DailyRecapDetail({ date, userId, onClose }: Props) {
       window.removeEventListener('keydown', onKeyDown);
       document.body.style.overflow = previous;
     };
-  }, [onClose]);
+  }, [onClose, confirmation, busy]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -56,13 +73,52 @@ export default function DailyRecapDetail({ date, userId, onClose }: Props) {
     return () => { active = false; controller.abort(); };
   }, [date, userId, revision]);
 
+  function chooseAction(value: Confirmation) {
+    if (busy) return;
+    setConfirmation(value);
+    setCancelReason('');
+    setActionError('');
+    setActionNotice('');
+  }
+
+  async function confirmAction() {
+    if (!confirmation || busy) return;
+    setActionError('');
+    setActionNotice('');
+    setBusy(true);
+    try {
+      const result = await submitRecapAction(
+        confirmation.type === 'cancel'
+          ? { type: 'cancel', id: confirmation.id, reason: cancelReason }
+          : confirmation.type === 'retake'
+            ? { type: 'retake', id: confirmation.id }
+            : { type: 'review', id: confirmation.id, review: confirmation.review },
+      );
+      setActionNotice(result.warning || (
+        confirmation.type === 'review' ? 'Status selfie berhasil diperbarui.' :
+          confirmation.type === 'retake' ? 'Izin absensi ulang berhasil diberikan.' :
+            'Absensi dibatalkan. Foto dihapus jika pembersihan berhasil.'
+      ));
+      setConfirmation(null);
+      setCancelReason('');
+      setPhotoId(null);
+      setPhotoError(false);
+      setRevision((value) => value + 1);
+      onChanged();
+    } catch (cause: unknown) {
+      setActionError(cause instanceof Error ? cause.message : 'Tindakan gagal. Silakan coba kembali.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const summary = detail ? recapDetailSummary(detail) : null;
   const photoRecord = detail?.records.find((record) => record.id === photoId);
 
   return (
     <div
       className="overlay daily-recap-overlay"
-      onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}
+      onMouseDown={(event) => { if (!busy && event.target === event.currentTarget) onClose(); }}
     >
       <section className="modal daily-recap-modal" role="dialog" aria-modal="true" aria-labelledby="recap-detail-heading">
         <div className="modal-title daily-recap-detail-header">
@@ -71,10 +127,11 @@ export default function DailyRecapDetail({ date, userId, onClose }: Props) {
             <h2 id="recap-detail-heading">{summary?.name ?? 'Memuat detail absensi…'}</h2>
             {summary && <p>{summary.email}</p>}
           </div>
-          <button ref={closeButton} type="button" className="icon-button" aria-label="Tutup detail absensi" onClick={onClose}>
+          <button ref={closeButton} type="button" className="icon-button" aria-label="Tutup detail absensi" disabled={busy} onClick={onClose}>
             <X size={20} />
           </button>
         </div>
+        {actionNotice && <div className="daily-recap-action-success" role="status">{actionNotice}</div>}
         {loading && <p className="daily-recap-state" role="status">Memuat detail absensi…</p>}
         {error && (
           <div className="daily-recap-error" role="alert">
@@ -93,6 +150,30 @@ export default function DailyRecapDetail({ date, userId, onClose }: Props) {
             </div>
             {coverageMessage(detail.context) && (
               <p className="daily-recap-message">{coverageMessage(detail.context)}</p>
+            )}
+            {confirmation && (
+              <section className="daily-recap-confirm" aria-label="Konfirmasi tindakan admin">
+                <h3>{confirmation.label}</h3>
+                <p>{confirmation.type === 'cancel'
+                  ? 'Foto selfie akan dihapus setelah pembatalan tercatat. Riwayat pembatalan tetap disimpan.'
+                  : confirmation.type === 'retake'
+                    ? 'Anggota akan diizinkan melakukan absensi ulang pada tanggal kantor yang sama.'
+                    : 'Status review selfie akan diperbarui dan dapat mengubah hasil rekap.'}</p>
+                {confirmation.type === 'cancel' && (
+                  <label>Alasan pembatalan (wajib, 5–500 karakter)
+                    <textarea value={cancelReason} minLength={5} maxLength={500}
+                      onChange={(event) => setCancelReason(event.target.value)}
+                      placeholder="Jelaskan alasan pembatalan absensi…" />
+                  </label>
+                )}
+                {actionError && <p role="alert" className="daily-recap-action-error">{actionError}</p>}
+                <div className="daily-recap-action-buttons">
+                  <button type="button" className="button" disabled={busy} onClick={() => { setConfirmation(null); setCancelReason(''); setActionError(''); }}>Kembali</button>
+                  <button type="button" className={confirmation.type === 'cancel' ? 'button danger' : 'button primary'}
+                    disabled={busy || (confirmation.type === 'cancel' && !validCancellationReason(cancelReason))}
+                    onClick={confirmAction}>{busy ? 'Menyimpan…' : 'Konfirmasi tindakan'}</button>
+                </div>
+              </section>
             )}
             <div className="daily-recap-detail-stats">
               <div><small>Absen masuk</small><strong>{summary.checkIn}</strong></div>
@@ -116,6 +197,15 @@ export default function DailyRecapDetail({ date, userId, onClose }: Props) {
                   >
                     {photoId === record.id ? 'Tutup foto selfie' : 'Lihat foto selfie'}
                   </button>
+                  <div className="daily-recap-admin-actions">
+                    {canReviewRecapRecord(record, 'approved') && <button type="button" className="button" disabled={busy}
+                      onClick={() => chooseAction({ type: 'review', id: record.id, review: 'approved', label: 'Setujui ' + recapAttendanceKind(record.kind) })}>Setujui selfie</button>}
+                    {canReviewRecapRecord(record, 'rejected') && <button type="button" className="button" disabled={busy}
+                      onClick={() => chooseAction({ type: 'review', id: record.id, review: 'rejected', label: 'Tolak ' + recapAttendanceKind(record.kind) })}>Tolak selfie</button>}
+                    {canCancelRecapRecord(detail, record) ? <button type="button" className="button danger" disabled={busy}
+                      onClick={() => chooseAction({ type: 'cancel', id: record.id, label: 'Batalkan ' + recapAttendanceKind(record.kind) })}>Batalkan absensi</button>
+                      : <small>Batalkan absensi pulang terlebih dahulu.</small>}
+                  </div>
                 </div>
               ))}
               {photoRecord && (
@@ -148,6 +238,8 @@ export default function DailyRecapDetail({ date, userId, onClose }: Props) {
                     <small>Oleh {item.cancelledBy} · {recapInstantLabel(item.cancelledAt, detail.context.timezone)}</small>
                     <p><strong>Alasan:</strong> {item.reason}</p>
                     <small>Otorisasi ulang: {item.retakeAuthorized ? 'Diberikan' : 'Belum diberikan'}</small>
+                    {canAuthorizeRecapRetake(detail, cancel, officeToday) && <button type="button" className="button" disabled={busy}
+                      onClick={() => chooseAction({type:'retake',id:cancel.id,label:'Izinkan absen ulang ' + item.kind})}>Izinkan absen ulang</button>}
                   </div>
                 );
               })}

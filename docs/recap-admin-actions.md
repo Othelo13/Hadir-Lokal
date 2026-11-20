@@ -1,0 +1,9 @@
+# P4.5 — Admin review, cancellation and retake from daily recap detail
+
+The daily recap detail modal now exposes authenticated admin mutations via existing POST /api/app actions: review ({id,review:'approved'|'rejected'}), cancel-attendance ({id,reason:trimmed 5..500 chars}), and authorize-retake ({id:the cancelled attendance ID}). These are the same backend actions already used by the legacy history UI, not new privileged endpoints. Server enforces session/role/current state and atomic cancellation with photo cleanup. No medical-absence action is introduced; P5 owns leave/sick request workflows.
+
+Every action has an explicit confirmation, single pending operation and disabled duplicate submission. Cancel is unavailable for check-in while a same-day checkout record exists. Retake is offered only on the office current date, most recent cancellation for that kind, no active record of that kind, no approved reserved absence, and no previous authorization. These UI gates are hints only; the backend remains authoritative, including race conditions. Review changes may affect a provisional attendance status. If photo deletion fails after committed cancellation, display the backend warning rather than implying rollback.
+
+After successful mutation, invalidate the selected detail and parent daily page, fetch fresh snapshots, clear private preview state, and display success/warning. Errors remain visible without treating failed writes as success, preserving action confirmation/reason for correction. Body credentials are never embedded or exported; requests are same-origin JSON POST with no-store. Existing riwayat/export and attendance flows remain unchanged. No new migration or deployment.
+
+Tests cover POST payloads, rejected/success feedback, cancellation reason validity, ordering of checkout cancellation, retake eligibility and historical dates. Browser interaction and focus/accessibility are part of P4.6.
