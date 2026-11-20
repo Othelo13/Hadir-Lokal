@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { CalendarDays, Download, FileText, RefreshCw, X } from 'lucide-react';
 import { getDailyRecapDetail } from './recap-api';
+import { recapWrappedTabTarget } from './recap-accessibility';
 import { canAuthorizeRecapRetake, canCancelRecapRecord, canReviewRecapRecord, submitRecapAction, validCancellationReason } from './recap-actions';
 import type { RecapReview } from './recap-actions';
 import { coverageMessage } from './recap-presentation';
@@ -33,26 +34,65 @@ export default function DailyRecapDetail({ date, userId, officeToday, onClose, o
   const [actionNotice, setActionNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const closeButton = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLElement>(null);
+  const cancelReasonInput = useRef<HTMLTextAreaElement>(null);
+  const confirmButton = useRef<HTMLButtonElement>(null);
+  const latestClose = useRef(onClose);
+  const latestBusy = useRef(busy);
+  const latestConfirmation = useRef(confirmation);
+  latestClose.current = onClose;
+  latestBusy.current = busy;
+  latestConfirmation.current = confirmation;
 
   useEffect(() => {
-    const previous = document.body.style.overflow;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     closeButton.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !busy) {
+      if (event.key === 'Escape') {
+        if (latestBusy.current) return;
         event.preventDefault();
-        if (confirmation) {
+        if (latestConfirmation.current) {
           setConfirmation(null);
           setCancelReason('');
-        } else onClose();
+          setActionError('');
+          closeButton.current?.focus();
+        } else latestClose.current();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const dialog = dialogRef.current;
+      if (!dialog) return;
+      const elements = Array.from(dialog.querySelectorAll<HTMLElement>(
+        'a[href],button:not([disabled]),input:not([disabled]),textarea:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])',
+      )).filter((element) => element.getClientRects().length > 0 && !element.closest('[hidden],[inert]'));
+      if (!elements.length) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const active = elements.indexOf(document.activeElement as HTMLElement);
+      const next = recapWrappedTabTarget(active, elements.length, event.shiftKey);
+      if (next !== null) {
+        event.preventDefault();
+        elements[next]?.focus();
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => {
       window.removeEventListener('keydown', onKeyDown);
-      document.body.style.overflow = previous;
+      document.body.style.overflow = previousOverflow;
+      // Return keyboard users to the member button they originally opened.
+      if (opener?.isConnected) opener.focus();
     };
-  }, [onClose, confirmation, busy]);
+  }, []);
+
+  useEffect(() => {
+    if (!confirmation) return;
+    if (confirmation.type === 'cancel') cancelReasonInput.current?.focus();
+    else confirmButton.current?.focus();
+  }, [confirmation]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -104,6 +144,7 @@ export default function DailyRecapDetail({ date, userId, officeToday, onClose, o
       setPhotoId(null);
       setPhotoError(false);
       setRevision((value) => value + 1);
+      closeButton.current?.focus();
       onChanged();
     } catch (cause: unknown) {
       setActionError(cause instanceof Error ? cause.message : 'Tindakan gagal. Silakan coba kembali.');
@@ -118,9 +159,9 @@ export default function DailyRecapDetail({ date, userId, officeToday, onClose, o
   return (
     <div
       className="overlay daily-recap-overlay"
-      onMouseDown={(event) => { if (!busy && event.target === event.currentTarget) onClose(); }}
+      onMouseDown={(event) => { if (!busy && !confirmation && event.target === event.currentTarget) onClose(); }}
     >
-      <section className="modal daily-recap-modal" role="dialog" aria-modal="true" aria-labelledby="recap-detail-heading">
+      <section ref={dialogRef} tabIndex={-1} className="modal daily-recap-modal" role="dialog" aria-modal="true" aria-labelledby="recap-detail-heading">
         <div className="modal-title daily-recap-detail-header">
           <div>
             <small>DETAIL REKAP HARIAN</small>
@@ -161,7 +202,7 @@ export default function DailyRecapDetail({ date, userId, officeToday, onClose, o
                     : 'Status review selfie akan diperbarui dan dapat mengubah hasil rekap.'}</p>
                 {confirmation.type === 'cancel' && (
                   <label>Alasan pembatalan (wajib, 5–500 karakter)
-                    <textarea value={cancelReason} minLength={5} maxLength={500}
+                    <textarea ref={cancelReasonInput} value={cancelReason} minLength={5} maxLength={500}
                       onChange={(event) => setCancelReason(event.target.value)}
                       placeholder="Jelaskan alasan pembatalan absensi…" />
                   </label>
@@ -169,7 +210,7 @@ export default function DailyRecapDetail({ date, userId, officeToday, onClose, o
                 {actionError && <p role="alert" className="daily-recap-action-error">{actionError}</p>}
                 <div className="daily-recap-action-buttons">
                   <button type="button" className="button" disabled={busy} onClick={() => { setConfirmation(null); setCancelReason(''); setActionError(''); }}>Kembali</button>
-                  <button type="button" className={confirmation.type === 'cancel' ? 'button danger' : 'button primary'}
+                  <button ref={confirmButton} type="button" className={confirmation.type === 'cancel' ? 'button danger' : 'button primary'}
                     disabled={busy || (confirmation.type === 'cancel' && !validCancellationReason(cancelReason))}
                     onClick={confirmAction}>{busy ? 'Menyimpan…' : 'Konfirmasi tindakan'}</button>
                 </div>

@@ -91,7 +91,7 @@ export function DailyRecapTableView({
       {!loading && !error && recap && (
         <>
           <div className="table-wrap">
-            <table className="daily-recap-table">
+            <table className="daily-recap-table" aria-label="Rekap kehadiran anggota per tanggal">
               <thead>
                 <tr>
                   <th scope="col">Anggota</th>
@@ -106,6 +106,7 @@ export function DailyRecapTableView({
                 {rows.map((row) => (
                   <tr key={row.userId}>
                     <td>
+                      <span className="daily-recap-cell-label">Anggota</span>
                       <div className="person">
                         <span className="avatar" aria-hidden="true">{row.name.slice(0, 2).toUpperCase()}</span>
                         <span>
@@ -114,11 +115,11 @@ export function DailyRecapTableView({
                         </span>
                       </div>
                     </td>
-                    <td className="time">{row.checkIn}</td>
-                    <td className="time">{row.checkOut}</td>
-                    <td><span className={'badge daily-recap-status ' + (row.status ?? 'none')}>{row.statusLabel}</span></td>
-                    <td>{row.note}</td>
-                    <td><button type="button" className="daily-recap-view-button" aria-label={'Lihat detail ' + row.name} onClick={() => openDetail(recap.date, row.userId)}>Lihat detail</button></td>
+                    <td className="time"><span className="daily-recap-cell-label">Masuk</span>{row.checkIn}</td>
+                    <td className="time"><span className="daily-recap-cell-label">Pulang</span>{row.checkOut}</td>
+                    <td><span className="daily-recap-cell-label">Status</span><span className={'badge daily-recap-status ' + (row.status ?? 'none')}>{row.statusLabel}</span></td>
+                    <td><span className="daily-recap-cell-label">Keterangan</span><span>{row.note}</span></td>
+                    <td><span className="daily-recap-cell-label">Detail</span><button type="button" className="daily-recap-view-button" aria-label={'Lihat detail ' + row.name} onClick={() => openDetail(recap.date, row.userId)}>Lihat detail</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -132,7 +133,7 @@ export function DailyRecapTableView({
             </div>
           )}
           <div className="daily-recap-footer">
-            <span>Menampilkan {info?.from ?? 0}–{info?.to ?? 0} dari {info?.total ?? 0} anggota</span>
+            <span role="status" aria-live="polite">Menampilkan {info?.from ?? 0}–{info?.to ?? 0} dari {info?.total ?? 0} anggota</span>
             <div className="daily-recap-pages">
               <label>
                 Baris

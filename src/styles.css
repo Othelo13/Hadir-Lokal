@@ -1846,3 +1846,96 @@ footer > span:first-child {
 .daily-recap-confirm .button.danger:hover, .daily-recap-admin-actions .button.danger:hover { background: #ffe7e1; }
 .daily-recap-action-error { color: #a4493e !important; }
 .daily-recap-action-success { margin: 0 0 12px; border: 1px solid #d8e5c7; background: #f5f9ef; color: #477b55; border-radius: 8px; padding: 12px 14px; font-size: 12px; overflow-wrap: anywhere; }
+
+
+/* P4.6: scoped small-screen layout and accessible control targets. */
+.daily-recap-cell-label { display: none; }
+.daily-recap :is(button, input, select):focus-visible,
+.daily-recap-modal :is(button, input, textarea, select, a):focus-visible {
+  outline: 3px solid #8da766;
+  outline-offset: 3px;
+}
+.daily-recap-modal { overscroll-behavior: contain; }
+.daily-recap-modal:focus { outline: none; }
+.daily-recap-table td { overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  .daily-recap .table-wrap { padding: 12px 14px; overflow-x: visible; }
+  .daily-recap-table {
+    width: 100%;
+    min-width: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    white-space: normal;
+  }
+  .daily-recap-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    border: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    clip-path: inset(50%);
+  }
+  .daily-recap-table tbody { display: grid; gap: 12px; }
+  .daily-recap-table tbody tr {
+    display: grid;
+    gap: 0;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+    padding: 10px 14px;
+    box-shadow: 0 2px 7px #2038230a;
+  }
+  .daily-recap-table tbody td {
+    border: 0;
+    padding: 9px 0;
+    display: flex;
+    gap: 10px;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    font-size: 12px;
+  }
+  .daily-recap-table tbody td:first-child {
+    display: grid;
+    gap: 8px;
+    padding: 3px 0 12px;
+    margin-bottom: 3px;
+    border-bottom: 1px solid var(--line);
+  }
+  .daily-recap-table .person { min-width: 0; }
+  .daily-recap-table .person > span:last-child { overflow-wrap: anywhere; min-width: 0; }
+  .daily-recap-table .person small { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+  .daily-recap-cell-label {
+    display: inline-block;
+    color: #758170;
+    font-size: 10px;
+    flex: 0 0 82px;
+    font-weight: 600;
+  }
+  .daily-recap-view-button, .daily-recap-member-button { min-height: 36px; }
+  .daily-recap-view-button { padding: 9px; }
+  .daily-recap-pages { flex-wrap: wrap; }
+  .daily-recap-pages nav button { min-width: 44px; min-height: 44px; }
+  .daily-recap-pages select { min-height: 44px; }
+  .daily-recap-footer { align-items: stretch; flex-direction: column; }
+  .daily-recap-modal { max-height: calc(100dvh - 24px); width: 100%; }
+  .daily-recap-overlay { padding: 12px; }
+}
+@media (max-width: 420px) {
+  .daily-recap-head-actions { width: 100%; justify-content: space-between; }
+  .daily-recap-detail-stats { grid-template-columns: minmax(0, 1fr); }
+  .daily-recap-action-buttons, .daily-recap-admin-actions { flex-direction: column; align-items: stretch; }
+  .daily-recap-action-buttons .button, .daily-recap-admin-actions .button { width: 100%; min-height: 44px; }
+  .daily-recap-modal { padding: 15px; }
+  .daily-recap-detail-header { align-items: flex-start; }
+  .daily-recap-detail-header > div { min-width: 0; }
+  .daily-recap-detail-header h2 { font-size: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .daily-recap *, .daily-recap-modal * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
