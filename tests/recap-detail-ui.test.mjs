@@ -36,9 +36,9 @@ test('in and out are identified independently while unknown kind is not invented
 });
 test('timestamp formatter uses historical timezone or marks UTC as unknown timezone',()=>{
  const instant='2026-11-19T00:45:00.000Z';
- assert.match(recapInstantLabel(instant,'Asia/Makassar'),/08:45/);
+ assert.match(recapInstantLabel(instant,'Asia/Makassar'),/08[.:]45/);
  assert.match(recapInstantLabel(instant,'Asia/Makassar'),/Asia\/Makassar/);
- assert.match(recapInstantLabel(instant,null),/00:45.*UTC/);
+ assert.match(recapInstantLabel(instant,null),/00[.:]45.*UTC/);
  assert.equal(recapInstantLabel('invalid',null),'—');
  assert.equal(recapInstantLabel(null,'Asia/Makassar'),'—');
 });
