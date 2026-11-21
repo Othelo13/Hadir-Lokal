@@ -4,6 +4,8 @@
  min-height: 40px; border: 1px solid var(--line); border-radius: 7px;
  padding: 0 12px; background: white; color: var(--ink);
 }
+/* Keep one focus ring on the search container, not its nested input. */
+.member-recap .daily-recap-search-field input:focus-visible { outline: none; }
 .member-recap-table { min-width: 760px; }
 .member-recap-table tbody tr[role="button"] { cursor:pointer; }
 .member-recap-table tbody tr[role="button"]:hover { background:#f5f9ef; }
