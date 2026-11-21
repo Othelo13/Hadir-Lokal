@@ -62,13 +62,18 @@ test('absence history is append-only and survives missing member account', () =>
     assert.equal(db.prepare('SELECT count(*) AS n FROM absence_request_history').get().n,1);
   } finally { db.close(); }
 });
-const policy = { today:'2026-11-19', workDays:[1,2,3,4,5,6], maxBackDays:3, maxRangeDays:31 };
-test('date policy validates calendar dates, range, lookback and working days', () => {
+const policy = { workDays:[1,2,3,4,5,6], maxRangeDays:366 };
+test('date policy permits historical and >31-day requests while bounding work and dates safely', () => {
   assert.deepEqual(effectiveAbsenceDays({...policy,startDate:'2026-11-19',endDate:'2026-11-23'}), ['2026-11-19','2026-11-20','2026-11-21','2026-11-23']);
-  assert.throws(() => effectiveAbsenceDays({...policy,startDate:'2026-02-30',endDate:'2026-03-01'}));
-  assert.throws(() => effectiveAbsenceDays({...policy,startDate:'2026-11-15',endDate:'2026-11-19'}));
-  assert.throws(() => effectiveAbsenceDays({...policy,startDate:'2026-11-22',endDate:'2026-11-22'}));
-  assert.throws(() => effectiveAbsenceDays({...policy,startDate:'2026-11-20',endDate:'2026-12-21'}));
+  const historical = effectiveAbsenceDays({...policy,startDate:'2026-01-02',endDate:'2026-02-16'});
+  assert.ok(historical.length > 31);
+  assert.equal(historical[0], '2026-01-02');
+  assert.equal(historical.at(-1), '2026-02-16');
+  assert.throws(() => effectiveAbsenceDays({...policy,startDate:'2026-02-30',endDate:'2026-03-01'}), {status:400});
+  assert.throws(() => effectiveAbsenceDays({...policy,startDate:'2026-11-22',endDate:'2026-11-22'}), {status:400});
+  assert.throws(() => effectiveAbsenceDays({...policy,startDate:'2026-11-20',endDate:'2026-11-19'}), {status:400});
+  assert.throws(() => effectiveAbsenceDays({...policy,startDate:'2026-01-01',endDate:'2027-01-02'}), {status:400});
+  assert.ok(effectiveAbsenceDays({...policy,startDate:'2026-01-01',endDate:'2027-01-01'}).length > 0);
   assert.equal(officeDate(new Date('2026-11-18T16:05:00Z'),'Asia/Makassar'),'2026-11-19');
 });
 test('state machine enforces ownership, roles and terminal states', () => {

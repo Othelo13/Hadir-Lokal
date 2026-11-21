@@ -17,13 +17,13 @@ export function officeDate(now, timezone) {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
-/** Policy is explicit: caller supplies agreed limits; no implicit production defaults. */
-export function effectiveAbsenceDays({ startDate, endDate, today, workDays, maxBackDays, maxRangeDays }) {
+/** Historical, current and future days are eligible for submission.
+ * maxRangeDays is a bounded technical safety guard, not an entitlement.
+ */
+export function effectiveAbsenceDays({ startDate, endDate, workDays, maxRangeDays }) {
   const start = parseCalendarDate(startDate);
   const end = parseCalendarDate(endDate);
-  const current = parseCalendarDate(today);
-  if (!Number.isSafeInteger(maxBackDays) || maxBackDays < 0 ||
-      !Number.isSafeInteger(maxRangeDays) || maxRangeDays < 1 || maxRangeDays > 366) {
+  if (!Number.isSafeInteger(maxRangeDays) || maxRangeDays < 1 || maxRangeDays > 366) {
     throw new Error('Invalid absence policy configuration.');
   }
   if (!Array.isArray(workDays) || !workDays.length ||
@@ -31,7 +31,6 @@ export function effectiveAbsenceDays({ startDate, endDate, today, workDays, maxB
     throw new Error('Invalid work schedule configuration.');
   }
   if (start > end) invalid('Tanggal selesai harus sama atau setelah tanggal mulai.');
-  if ((current - start) / DAY > maxBackDays) invalid('Pengajuan melewati batas tanggal sebelumnya.');
   if ((end - start) / DAY + 1 > maxRangeDays) invalid('Durasi pengajuan melebihi batas.');
   const result = [];
   for (let date = start; date <= end; date += DAY) {

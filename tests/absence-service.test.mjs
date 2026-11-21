@@ -6,7 +6,7 @@ import { migrateAbsenceDomain } from '../server/migrate-absence.mjs';
 import { submitAbsence, transitionAbsence, assertAttendanceAllowed } from '../server/absence-service.mjs';
 
 const now = new Date('2026-11-19T01:00:00Z');
-const policy = { maxBackDays:3,maxRangeDays:31,minReasonLength:5,maxReasonLength:500 };
+const policy = { maxRangeDays:366,minReasonLength:5,maxReasonLength:500 };
 const input = { type:'leave',startDate:'2026-11-19',endDate:'2026-11-23',reason:'Kegiatan kampus' };
 function fixture(t) {
   const db = new DatabaseSync(':memory:');
@@ -123,4 +123,15 @@ test('failure writing audit rolls back submission and approval',t=>{
   assert.equal(status(db,id),'pending');
   assert.equal(count(db,'absence_day_reservations'),4);
   assert.equal(count(db,'absence_request_history'),1);
+});
+
+test('historical multi-week request may be submitted without a three-day lookback',t=>{
+  const db=fixture(t);
+  const old={...input,startDate:'2026-09-01',endDate:'2026-10-15'};
+  const result=submit(db,'a',old);
+  assert.equal(status(db,result.id),'pending');
+  assert.ok(result.days.length>31);
+  assert.equal(count(db,'absence_day_reservations'),result.days.length);
+  assert.equal(transition(db,result.id,'approve').status,'approved');
+  assert.throws(()=>assertAttendanceAllowed(db,'a','2026-09-01'),{status:409});
 });

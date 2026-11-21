@@ -1,9 +1,9 @@
 import { submitAbsence, transitionAbsence } from './absence-service.mjs';
 import { attachmentResponse } from './absence-attachment.mjs';
 
-// Provisional defaults for the development release; never supplied by clients.
+// Business policy allows past/future dates; 366 days is a technical guard per request.
 export const absencePolicy = Object.freeze({
-  maxBackDays:3, maxRangeDays:31, minReasonLength:5, maxReasonLength:500,
+  maxRangeDays:366, minReasonLength:5, maxReasonLength:500,
 });
 const statuses = new Set(['pending','approved','rejected','cancelled']);
 const types = new Set(['leave','sick']);

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { storeAttachment } from './absence-attachment.mjs';
-import { effectiveAbsenceDays, officeDate, nextAbsenceStatus } from './absence-policy.mjs';
+import { effectiveAbsenceDays, nextAbsenceStatus } from './absence-policy.mjs';
 
 function fail(message, status = 400) {
   throw Object.assign(new Error(message), { status });
@@ -68,8 +68,8 @@ export function submitAbsence(sqlite, actorId, input, policy, now = new Date()) 
     if (!config) throw new Error('Missing office configuration.');
     const workDays = JSON.parse(config.days);
     const days = effectiveAbsenceDays({
-      startDate:input.startDate,endDate:input.endDate,today:officeDate(now,config.timezone),
-      workDays,maxBackDays:policy.maxBackDays,maxRangeDays:policy.maxRangeDays
+      startDate:input.startDate,endDate:input.endDate,
+      workDays,maxRangeDays:policy.maxRangeDays
     });
     assertNoAttendance(sqlite,actorId,days);
     const reservation = sqlite.prepare('SELECT request_id FROM absence_day_reservations WHERE user_id=? AND date=?');
