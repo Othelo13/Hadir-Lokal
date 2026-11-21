@@ -32,12 +32,16 @@ test('mobile recap scrolls like history instead of becoming a card grid',()=>{
  assert.match(localCss,/\.member-recap-table \{ min-width: 760px; \}/);
 });
 
-test('search field uses one accessible outer focus ring without a duplicate input outline',()=>{
+test('filter controls have no focus rings and keep keyboard focus feedback without affecting other UI',()=>{
  const globalCss=source('../src/styles.css');
  const localCss=source('../src/member-recap-period.css');
  const recap=source('../src/MemberRecapTable.tsx');
  assert.match(globalCss,/\.daily-recap-search-field:focus-within\s*\{\s*outline:\s*3px solid/);
  assert.match(globalCss,/\.member-recap :is\(button,input,select\):focus-visible\s*\{\s*outline:\s*3px solid/);
- assert.match(localCss,/\.member-recap \.daily-recap-search-field input:focus-visible\s*\{\s*outline:\s*none;\s*\}/);
- assert.match(recap,/className="daily-recap-search-field"/);
+ assert.match(localCss,/\.member-recap \.daily-recap-filters :is\(input, select, button\):focus-visible\s*\{\s*outline:\s*none;/);
+ assert.match(localCss,/\.member-recap \.daily-recap-filters \.daily-recap-search-field:focus-within\s*\{\s*outline:\s*none;/);
+ assert.match(localCss,/\.member-recap \.daily-recap-filters \.daily-recap-search-field input:focus-visible\s*\{\s*outline:\s*none;/);
+ assert.match(localCss,/background-color:\s*#f6f9f2/);
+ for (const token of ['className="daily-recap-filters"','className="daily-recap-search-field"',
+  'className="daily-recap-reset"']) assert.ok(recap.includes(token));
 });
