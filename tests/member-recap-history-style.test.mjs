@@ -42,6 +42,7 @@ test('filter controls have no focus rings and keep keyboard focus feedback witho
  assert.match(localCss,/\.member-recap \.daily-recap-filters \.daily-recap-search-field:focus-within\s*\{\s*outline:\s*none;/);
  assert.match(localCss,/\.member-recap \.daily-recap-filters \.daily-recap-search-field input:focus-visible\s*\{\s*outline:\s*none;/);
  assert.match(localCss,/background-color:\s*#f6f9f2/);
- for (const token of ['className="daily-recap-filters"','className="daily-recap-search-field"',
-  'className="daily-recap-reset"']) assert.ok(recap.includes(token));
+ for (const token of ['className="daily-recap-filters"','className="daily-recap-search-field"'])
+  assert.ok(recap.includes(token));
+ assert.match(recap,/className="[^"]*daily-recap-reset[^"]*"/);
 });
