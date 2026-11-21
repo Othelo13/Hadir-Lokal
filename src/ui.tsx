@@ -1,5 +1,6 @@
 import PasswordInput from './PasswordInput';
 import MemberRecapTable from './MemberRecapTable';
+import AbsenceRequests from './AbsenceRequests';
 import { buildAttendanceExcel } from './excel-export';
 import { paginate } from './pagination';
 import { useEffect, useRef, useState } from 'react';
@@ -22,6 +23,7 @@ import {
   Users,
   X,
   CalendarDays,
+  ClipboardList,
   ScanFace,
   Menu,
   Search,
@@ -450,6 +452,7 @@ export default function Dashboard() {
     ...(!admin ? [['attendance', 'Absensi saya', ScanFace]] : []),
     ...(admin ? [['recap', 'Rekap absensi', CalendarDays]] : []),
     ['history', admin ? 'Riwayat & ekspor' : 'Riwayat absensi', Clock3],
+    ['absence', 'Izin & sakit', ClipboardList],
     ['account', 'Akun saya', ShieldCheck],
     ...(admin
       ? [
@@ -463,6 +466,7 @@ export default function Dashboard() {
     overview: 'Ringkasan',
     attendance: 'Absensi saya',
     recap: 'Rekap absensi',
+    absence: 'Izin & sakit',
     history: admin ? 'Riwayat & ekspor' : 'Riwayat absensi',
     members: 'Anggota magang',
     qr: 'QR kantor',
@@ -685,6 +689,8 @@ export default function Dashboard() {
                     ? 'Ambil selfie bersama QR kantor untuk mencatat kehadiranmu.'
                     : tab === 'recap'
                       ? 'Ringkasan jumlah hari hadir, tidak hadir, izin, dan sakit setiap anggota magang.'
+                    : tab === 'absence'
+                      ? admin ? 'Tinjau dan kelola pengajuan izin atau sakit anggota.' : 'Ajukan izin atau sakit dan pantau status persetujuannya.'
                     : tab === 'qr'
                       ? 'Buat, cetak, dan kelola QR yang ditempel di kantor.'
                       : tab === 'members'
@@ -984,6 +990,7 @@ export default function Dashboard() {
             </div>
           )}
           {admin && tab === 'recap' && <MemberRecapTable key={data.me.user_id} officeToday={data.today.date} />}
+          {tab === 'absence' && <AbsenceRequests key={data.me.user_id} admin={admin} />}
           {tab === 'history' && (
             <>
               <section className="panel">
