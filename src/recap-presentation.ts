@@ -10,6 +10,12 @@ export function recapStatusLabel(status: RecapStatus): string {
   }
 }
 
+// Calendar-only dates must not shift with device timezone or locale.
+export function formatRecapDate(value: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : value;
+}
+
 // Never infer an unknown historic timezone from the device or current settings.
 // Preserve the recorded time by displaying UTC explicitly when history is unavailable.
 export function formatRecapTime(event: { time: string; timezone: string | null } | null): string {

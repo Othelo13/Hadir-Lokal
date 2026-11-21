@@ -3,7 +3,7 @@ import './member-recap-period.css';
 import { ChevronLeft, ChevronRight, RefreshCw, Search, Users, X } from 'lucide-react';
 import { getMemberRecap } from './member-recap-api';
 import DailyRecapDetail from './DailyRecapDetail';
-import { formatRecapTime } from './recap-presentation';
+import { formatRecapDate, formatRecapTime } from './recap-presentation';
 import type { MemberRecapDay, MemberRecapPeriod, MemberRecapResponse, MemberRecapRow } from './member-recap-types';
 
 const labels: Record<MemberRecapDay['state'],string> = {
@@ -12,7 +12,7 @@ const labels: Record<MemberRecapDay['state'],string> = {
  'not-applicable':'Belum menjadi anggota pada hari tersebut',
 };
 function periodDescription(value: MemberRecapResponse) {
- return value.startDate===value.endDate?value.startDate:value.startDate+' – '+value.endDate;
+ return value.startDate===value.endDate?formatRecapDate(value.startDate):formatRecapDate(value.startDate)+' – '+formatRecapDate(value.endDate);
 }
 
 function MemberPeriodDetail({member,recap,officeToday,onClose,onChanged}:{
@@ -59,7 +59,7 @@ function MemberPeriodDetail({member,recap,officeToday,onClose,onChanged}:{
     </div>
     <section className="daily-recap-detail-section member-recap-detail-section" aria-label="Rincian absensi per tanggal">
      <h3>Rincian per tanggal</h3>
-     <p>Klik baris tanggal untuk melihat bukti absensi atau tindakan admin jika rincian tersedia.</p>
+     {member.days.some(day=>day.hasDetail)&&<p>Klik baris tanggal untuk melihat bukti absensi atau tindakan admin jika rincian tersedia.</p>}
      <div className="table-wrap member-recap-day-table-wrap" role="region" aria-label="Tabel rincian kehadiran anggota" tabIndex={0}>
       <table className="member-recap-day-table">
        <thead><tr>
@@ -72,6 +72,9 @@ function MemberPeriodDetail({member,recap,officeToday,onClose,onChanged}:{
         {member.days.length===0?<tr>
          <td colSpan={4} className="member-recap-day-empty">
           Belum ada catatan absensi, izin, atau sakit pada periode ini.
+          {member.absent>0&&<p className="member-recap-day-absence-note">
+           Tidak hadir tetap dihitung untuk hari kerja yang telah selesai dengan riwayat keanggotaan dan jadwal lengkap, meskipun tidak ada catatan tersimpan.
+          </p>}
          </td>
         </tr>:member.days.map(day=><tr key={day.date}
          className={day.hasDetail?'member-recap-day-clickable':undefined}
@@ -81,7 +84,7 @@ function MemberPeriodDetail({member,recap,officeToday,onClose,onChanged}:{
          onKeyDown={day.hasDetail?event=>{
           if(event.key==='Enter'||event.key===' '){event.preventDefault();setSelectedDay(day.date);}
          }:undefined}>
-         <td>{day.date}</td>
+         <td>{formatRecapDate(day.date)}</td>
          <td>{formatRecapTime(day.checkIn)}</td>
          <td>{formatRecapTime(day.checkOut)}</td>
          <td><span className={'badge daily-recap-status '+(

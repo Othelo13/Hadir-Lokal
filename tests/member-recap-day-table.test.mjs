@@ -6,7 +6,7 @@ import {migrateAbsenceDomain} from '../server/migrate-absence.mjs';
 import {migrateMemberScheduleHistory} from '../server/migrate-member-schedule.mjs';
 import {migrateAbsenceAttachments} from '../server/migrate-absence-attachments.mjs';
 import {handleMemberRecap} from '../server/member-recap.mjs';
-import {formatRecapTime} from '../src/recap-presentation.ts';
+import {formatRecapDate,formatRecapTime} from '../src/recap-presentation.ts';
 import {buildAttendanceExcel} from '../src/excel-export.ts';
 
 function fixture(t) {
@@ -122,4 +122,25 @@ test('legacy UTC clock stays explicit in recap display and Excel without guessin
  assert.doesNotMatch(workbook,/14[.:]09/);
  const history=readFileSync(new URL('../src/ui.tsx',import.meta.url),'utf8');
  assert.match(history,/fmtTime\(r\.time, r\.timezone\)/);
+});
+
+test('recap detail dates use day/month/year without changing stored ISO dates',()=>{
+ const jsx=readFileSync(new URL('../src/MemberRecapTable.tsx',import.meta.url),'utf8');
+ assert.equal(formatRecapDate('2026-11-20'),'20/11/2026');
+ assert.equal(formatRecapDate('2026-01-09'),'09/01/2026');
+ assert.equal(formatRecapDate('invalid'),'invalid');
+ assert.match(jsx,/formatRecapDate\(value\.startDate\)/);
+ assert.match(jsx,/formatRecapDate\(value\.endDate\)/);
+ assert.match(jsx,/<td>\{formatRecapDate\(day\.date\)\}<\/td>/);
+ assert.match(jsx,/setSelectedDay\(day\.date\)/); // backend still receives ISO
+});
+
+test('empty detail clarifies calculated absence and hides inapplicable click guidance',()=>{
+ const jsx=readFileSync(new URL('../src/MemberRecapTable.tsx',import.meta.url),'utf8');
+ const css=readFileSync(new URL('../src/member-recap-period.css',import.meta.url),'utf8');
+ assert.match(jsx,/member\.days\.length===0/);
+ assert.match(jsx,/member\.absent>0&&<p className="member-recap-day-absence-note">/);
+ assert.match(jsx,/Tidak hadir tetap dihitung untuk hari kerja yang telah selesai/);
+ assert.match(jsx,/member\.days\.some\(day=>day\.hasDetail\)&&<p>/);
+ assert.match(css,/\.member-recap-day-absence-note/);
 });
