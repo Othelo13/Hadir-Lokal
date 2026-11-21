@@ -72,9 +72,6 @@ function MemberPeriodDetail({member,recap,officeToday,onClose,onChanged}:{
         {member.days.length===0?<tr>
          <td colSpan={4} className="member-recap-day-empty">
           Belum ada catatan absensi, izin, atau sakit pada periode ini.
-          {member.absent>0&&<p className="member-recap-day-absence-note">
-           Tidak hadir tetap dihitung untuk hari kerja yang telah selesai dengan riwayat keanggotaan dan jadwal lengkap, meskipun tidak ada catatan tersimpan.
-          </p>}
          </td>
         </tr>:member.days.map(day=><tr key={day.date}
          className={day.hasDetail?'member-recap-day-clickable':undefined}

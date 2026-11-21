@@ -119,13 +119,16 @@ test('daily period reports selected date and one day for each active intern',t=>
  assert.equal(aliceDay.checkIn?.time,'2026-11-18T01:00:00Z');
  assert.equal(aliceDay.checkOut,null);
  assert.equal(r.rows[1].absent,1);
+ assert.deepEqual(r.rows[1].days.map(day=>({date:day.date,state:day.state,hasDetail:day.hasDetail})),
+  [{date:'2026-11-18',state:'absent',hasDetail:false}]);
 });
 test('weekly period spans Monday through Sunday even across calendar months',t=>{
  const f=fixture(t);
  const current=f.read({period:'week',date:'2026-11-20'});
  assert.deepEqual([current.startDate,current.endDate],['2026-11-16','2026-11-22']);
- assert.equal(current.rows[0].days.length,0); // no recorded evidence, despite seven calendar days
- assert.equal(current.rows[0].absent,2); // full-coverage missing days still contribute to totals
+ assert.deepEqual(current.rows[0].days.map(day=>[day.date,day.state,day.hasDetail]),
+  [['2026-11-18','absent',false],['2026-11-19','absent',false]]);
+ assert.equal(current.rows[0].absent,2); // full-coverage missing days become rows as well as totals
  const cross=f.read({period:'week',date:'2026-11-01'});
  assert.deepEqual([cross.startDate,cross.endDate],['2026-10-26','2026-11-01']);
 });

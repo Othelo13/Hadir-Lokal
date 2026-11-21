@@ -62,8 +62,9 @@ export function memberPeriodRecap(sqlite,selection={},now=new Date()){
   FROM absence_request_days day JOIN absence_requests r ON r.id=day.request_id
   WHERE day.date>=? AND day.date<=? AND r.status='pending'`)
   .all(dates[0],dates.at(-1)).map(r=>JSON.stringify([r.user_id,r.date])));
- // Only stored attendance, cancellations or absence requests belong in
- // the detail table. Generated roster/workdays still drive numeric totals.
+ // Stored evidence is included in the detail table. Verified absences are also
+ // shown as calculated daily states, without inventing attendance records.
+ // Incomplete historical coverage and ordinary unrecorded dates stay omitted.
  const recordedDates=new Set(sqlite.prepare(`SELECT user_id,date FROM records
   WHERE date BETWEEN ? AND ?
   UNION SELECT user_id,date FROM attendance_cancellations
@@ -109,7 +110,7 @@ export function memberPeriodRecap(sqlite,selection={},now=new Date()){
    // Only expose clock instants and their historical zone, never record IDs or file keys.
    const safeTime=event=>event?{time:event.time,timezone:event.timezone??null}:null;
    const historicalEvidenceOnly=Boolean(day?.eligible===null&&day?.status&&day.issues.length===0&&!day.provisional);
-   if(hasStoredData)member.days.push({date,state,late,hasDetail,historicalEvidenceOnly,
+   if(hasStoredData||state==='absent')member.days.push({date,state,late,hasDetail,historicalEvidenceOnly,
     checkIn:safeTime(day?.checkIn),checkOut:safeTime(day?.checkOut)});
    if(state==='present'){member.present++;if(late)member.late++;}
    else if(state==='absent')member.absent++;

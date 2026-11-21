@@ -105,12 +105,3 @@
   outline: 2px solid #8da766; outline-offset: -3px;
 }
 @media (max-width: 760px) { .member-recap-day-table-wrap { max-width: 100%; } }
-
-/* Clarify calculated absences only when the recorded-date table is empty. */
-.member-recap-day-absence-note {
-  margin: 6px 0 0;
-  color: #77816e;
-  font-size: 10px;
-  line-height: 1.5;
-  white-space: normal;
-}

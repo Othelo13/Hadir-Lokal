@@ -43,11 +43,18 @@ test('sanitized check-in/check-out times are displayed in historical office time
  for(const secret of ['secret-id-in','secret-id-out','private-in.jpg','private-out.jpg','qr'])
   assert.equal(JSON.stringify(response).includes(secret),false);
 });
-test('missing and future timestamps stay empty, no invented clock values',t=>{
+test('verified missing attendance appears in daily detail with no invented timestamps',t=>{
  const f=fixture(t);
- assert.equal(f.read('2026-11-19').rows[0].days.length,0);
- assert.equal(f.read('2026-11-25').rows[0].days.length,0);
- assert.equal(formatRecapTime(null),'—');
+ const row=f.read('2026-11-19').rows[0];
+ assert.equal(row.absent,1);
+ assert.deepEqual(row.days.map(day=>({date:day.date,state:day.state,hasDetail:day.hasDetail,checkIn:day.checkIn,checkOut:day.checkOut})),[
+  {date:'2026-11-19',state:'absent',hasDetail:false,checkIn:null,checkOut:null},
+ ]);
+ assert.equal(formatRecapTime(row.days[0].checkIn),'—');
+ assert.equal(formatRecapTime(row.days[0].checkOut),'—');
+ assert.equal(f.read('2026-11-20').rows[0].days.length,0); // ongoing office date
+ assert.equal(f.read('2026-11-21').rows[0].days.length,0); // non-working Saturday
+ assert.equal(f.read('2026-11-25').rows[0].days.length,0); // future date
 });
 test('pending check-in timestamp does not turn pending review into confirmed presence',t=>{
  const f=fixture(t),date='2026-11-18';
@@ -68,11 +75,12 @@ test('detail table shows four requested headers and retains keyboard-openable da
  assert.doesNotMatch(jsx,/className="member-recap-day-list"/);
 });
 
-test('completed unsaved workdays increase absent totals without appearing in recorded-day detail',t=>{
+test('calculated absence is included in detail without creating an attendance record',t=>{
  const f=fixture(t);
  const summary=f.read('2026-11-19').rows[0];
  assert.equal(summary.absent,1);
- assert.deepEqual(summary.days,[]);
+ assert.deepEqual(summary.days.map(day=>[day.date,day.state,day.hasDetail]),[['2026-11-19','absent',false]]);
+ assert.equal(f.db.prepare("SELECT COUNT(*) AS n FROM records WHERE user_id='intern'").get().n,0);
 });
 test('approved leave and pending request dates appear as stored detail rows',t=>{
  const f=fixture(t),date='2026-11-18';
@@ -135,12 +143,13 @@ test('recap detail dates use day/month/year without changing stored ISO dates',(
  assert.match(jsx,/setSelectedDay\(day\.date\)/); // backend still receives ISO
 });
 
-test('empty detail clarifies calculated absence and hides inapplicable click guidance',()=>{
+test('calculated absence renders as non-interactive detail row with a status',()=>{
  const jsx=readFileSync(new URL('../src/MemberRecapTable.tsx',import.meta.url),'utf8');
- const css=readFileSync(new URL('../src/member-recap-period.css',import.meta.url),'utf8');
  assert.match(jsx,/member\.days\.length===0/);
- assert.match(jsx,/member\.absent>0&&<p className="member-recap-day-absence-note">/);
- assert.match(jsx,/Tidak hadir tetap dihitung untuk hari kerja yang telah selesai/);
+ assert.match(jsx,/member\.days\.map\(day=><tr key=\{day\.date\}/);
+ assert.match(jsx,/day\.state==='absent'\?'danger':'none'/);
+ assert.match(jsx,/absent:'Tidak hadir'/);
+ assert.match(jsx,/onClick=\{day\.hasDetail\?\(\)=>setSelectedDay\(day\.date\):undefined\}/);
  assert.match(jsx,/member\.days\.some\(day=>day\.hasDetail\)&&<p>/);
- assert.match(css,/\.member-recap-day-absence-note/);
+ assert.doesNotMatch(jsx,/member-recap-day-absence-note/);
 });
