@@ -32,7 +32,11 @@
 .absence-error {background:#fff2f1;color:#9c4742;border:1px solid #f2d6d2;}
 .absence-feedback {background:#f0f6e7;color:#54713e;border:1px solid #dce9ce;}
 .absence-table-hint {display:none;}
-.absence-table {min-width:690px;}
+.absence-table {min-width:620px;}
+.absence-table tbody tr[role="button"] {cursor:pointer;}
+.absence-table tbody tr[role="button"]:hover,
+.absence-table tbody tr.absence-row-selected {background:#f5f8f0;}
+.absence-table tbody tr[role="button"]:focus-visible {outline:none;box-shadow:inset 0 0 0 2px #b9c7b0;background:#f5f8f0;}
 .absence-table th {padding:14px 16px;font-size:9px;text-transform:uppercase;letter-spacing:.6px;}
 .absence-table td {padding:15px 16px;vertical-align:middle;color:#5c6957;}
 .absence-table td small {display:block;color:var(--muted);margin-top:4px;}

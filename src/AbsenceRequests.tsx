@@ -102,6 +102,10 @@ export default function AbsenceRequests({admin}:{admin:boolean}) {
       .catch(err=>{if(!controller.signal.aborted)setDetailError(err instanceof Error?err.message:'Gagal memuat rincian.');});
     return ()=>controller.abort();
   },[selected,detailRevision]);
+  function toggleDetail(id: string) {
+    setSelected(current=>current===id?null:id);
+    setReviewReason('');
+  }
   async function submit(event:FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
@@ -198,14 +202,19 @@ export default function AbsenceRequests({admin}:{admin:boolean}) {
       <h3>Riwayat pengajuan</h3>
       <p>Daftar pengajuan dan status persetujuanmu.</p>
     </div>}
-    <p className="absence-table-hint">Geser tabel ke samping untuk melihat status dan detail pengajuan.</p>
+    <p className="absence-table-hint">Geser tabel untuk melihat kolom lainnya. Ketuk baris untuk melihat detail pengajuan.</p>
     <div className="table-wrap"><table className="absence-table">
-      <thead><tr>{admin&&<th>Anggota</th>}<th>Jenis</th><th>Periode</th><th>Hari kerja</th><th>Status</th><th>Detail</th></tr></thead>
-      <tbody>{rows.map(row=><tr key={row.id}>
+      <thead><tr>{admin&&<th>Anggota</th>}<th>Jenis</th><th>Periode</th><th>Hari kerja</th><th>Status</th></tr></thead>
+      <tbody>{rows.map(row=><tr key={row.id} role="button" tabIndex={0}
+        className={selected===row.id?'absence-row-selected':undefined}
+        aria-label={`Buka detail pengajuan ${kindLabels[row.type]} ${admin?'oleh '+row.name_snapshot+' ':''}tanggal ${displayDate(row.start_date)} sampai ${displayDate(row.end_date)}, ${statusLabels[row.status]}`}
+        aria-expanded={selected===row.id}
+        aria-controls={selected===row.id?'absence-request-detail':undefined}
+        onClick={()=>toggleDetail(row.id)}
+        onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDetail(row.id);}}}>
         {admin&&<td><strong>{row.name_snapshot}</strong><small>{row.email_snapshot}</small></td>}
         <td>{kindLabels[row.type]}</td><td>{displayDate(row.start_date)} – {displayDate(row.end_date)}</td>
         <td>{row.effective_day_count}</td><td><span className={'badge absence-status-'+row.status}>{statusLabels[row.status]}</span></td>
-        <td><button type="button" className="text-button" onClick={()=>{setSelected(row.id===selected?null:row.id);setReviewReason('');}} aria-expanded={selected===row.id}>Lihat detail</button></td>
       </tr>)}</tbody>
     </table></div>
     {!loading&&!rows.length&&<div className="empty"><CalendarDays size={28}/><h3>Belum ada pengajuan</h3><p>Pengajuan yang sesuai filter akan ditampilkan di sini.</p></div>}
@@ -215,7 +224,7 @@ export default function AbsenceRequests({admin}:{admin:boolean}) {
       <div><button type="button" className="button" disabled={loading||page<=1} onClick={()=>setPage(p=>p-1)} aria-label="Halaman sebelumnya"><ChevronLeft size={16}/></button>
       <button type="button" className="button" disabled={loading||page>=totalPages} onClick={()=>setPage(p=>p+1)} aria-label="Halaman berikutnya"><ChevronRight size={16}/></button></div>
     </div>
-    {selected&&<section className="absence-detail" aria-label="Rincian pengajuan">
+    {selected&&<section id="absence-request-detail" className="absence-detail" aria-label="Rincian pengajuan">
       <div className="absence-detail-head"><h3>Detail pengajuan</h3><button type="button" className="icon-button" aria-label="Tutup detail" onClick={()=>setSelected(null)}><X size={18}/></button></div>
       {detailError&&<p role="alert" className="absence-error">{detailError}</p>}
       {!detail&&!detailError&&<p>Memuat rincian…</p>}

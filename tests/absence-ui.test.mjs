@@ -56,9 +56,25 @@ test('status filter hides the green focus outline only within absence page toolb
 test('mobile horizontal scroll hint appears only in absence tables on narrow screens',()=>{
  const jsx=read('../src/AbsenceRequests.tsx');
  const css=read('../src/absence-requests.css');
- assert.match(jsx,/<p className="absence-table-hint">Geser tabel ke samping untuk melihat status dan detail pengajuan\.<\/p>/);
+ assert.match(jsx,/<p className="absence-table-hint">Geser tabel untuk melihat kolom lainnya\. Ketuk baris untuk melihat detail pengajuan\.<\/p>/);
  assert.match(jsx,/className="table-wrap"><table className="absence-table"/);
  assert.match(css,/\.absence-table-hint\s*\{\s*display:none;\s*\}/);
  assert.match(css,/@media\(max-width:700px\)\s*\{\s*\.absence-table-hint\s*\{\s*display:block;/);
- assert.match(css,/\.absence-table\s*\{min-width:690px;\}/);
+ assert.match(css,/\.absence-table\s*\{min-width:620px;\}/);
+});
+
+test('both roles open absence details by clicking a full row or pressing Enter/Space',()=>{
+ const jsx=read('../src/AbsenceRequests.tsx');
+ const css=read('../src/absence-requests.css');
+ assert.match(jsx,/<thead><tr>\{admin&&<th>Anggota<\/th>\}<th>Jenis<\/th><th>Periode<\/th><th>Hari kerja<\/th><th>Status<\/th><\/tr><\/thead>/);
+ assert.doesNotMatch(jsx,/<th>Detail<\/th>/);
+ assert.doesNotMatch(jsx,/>Lihat detail<\/button>/);
+ assert.match(jsx,/<tr key=\{row\.id\} role="button" tabIndex=\{0\}/);
+ assert.match(jsx,/aria-expanded=\{selected===row\.id\}/);
+ assert.match(jsx,/aria-controls=\{selected===row\.id\?'absence-request-detail':undefined\}/);
+ assert.match(jsx,/onClick=\{\(\)=>toggleDetail\(row\.id\)\}/);
+ assert.match(jsx,/event\.key==='Enter'\|\|event\.key===' '/);
+ assert.match(jsx,/id="absence-request-detail" className="absence-detail"/);
+ assert.match(css,/\.absence-table tbody tr\[role="button"\]\s*\{cursor:pointer;\}/);
+ assert.match(css,/\.absence-table tbody tr\[role="button"\]:focus-visible\s*\{[^}]*background:/);
 });
