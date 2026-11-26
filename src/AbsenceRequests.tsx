@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, Download, FilePlus2, Paperclip, RefreshCw, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { makeAttachmentPreviewBlob } from './attachment-preview';
 import './absence-requests.css';
 
 type Kind = 'leave' | 'sick';
@@ -177,14 +178,10 @@ export default function AbsenceRequests({admin}:{admin:boolean}) {
           const payload:unknown=await response.json().catch(()=>null);
           throw new Error(errorText(payload,'Gagal memuat pratinjau lampiran.'));
         }
-        if(response.headers.get('content-type')?.split(';')[0].trim()!==attachment.mime_type){
-          throw new Error('Format lampiran dari server tidak sesuai.');
-        }
-        const blob=await response.blob();
-        if(blob.size!==attachment.file_size || blob.size===0){
-          throw new Error('Ukuran lampiran dari server tidak sesuai.');
-        }
-        return blob;
+        const bytes=await response.arrayBuffer();
+        // Some transports may modify the Content-Type response header. Verify
+        // the actual bytes against authenticated metadata before rendering.
+        return makeAttachmentPreviewBlob(bytes,attachment.mime_type,attachment.file_size);
       })
       .then(blob=>{
         if(controller.signal.aborted)return;

@@ -31,13 +31,13 @@ const headers = {
   'Referrer-Policy': 'same-origin',
   'Permissions-Policy': 'camera=(self), microphone=(), geolocation=()',
   'Content-Security-Policy':
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; font-src 'self'; frame-src blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
 };
 const developmentHeaders = {
   ...headers,
   'Cache-Control': 'no-store',
   'Content-Security-Policy':
-    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' ${socketOrigins}; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'".replace(
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' ${socketOrigins}; font-src 'self'; frame-src blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'".replace(
       '${socketOrigins}',
       `ws://127.0.0.1:${port} ws://localhost:${port}`,
     ),

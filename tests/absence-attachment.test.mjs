@@ -78,6 +78,7 @@ test('download is owner/admin only, binary and forced attachment with no cache',
   const res=await call(user,'absence-attachment',undefined,{id});
   assert.equal(res.status,200);
   assert.equal(res.headers.get('content-disposition'),'attachment; filename="lampiran.pdf"');
+  assert.equal(res.headers.get('content-type'),'application/pdf');
   assert.equal(res.headers.get('cache-control'),'private, no-store');
   assert.equal(res.headers.get('x-content-type-options'),'nosniff');
   assert.deepEqual(Buffer.from(await res.arrayBuffer()),pdf);

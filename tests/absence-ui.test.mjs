@@ -138,8 +138,9 @@ test('admin automatically previews private images and PDFs while preserving down
  const styles=read('../src/absence-requests.css');
  assert.match(jsx,/if\(!admin \|\| !selected \|\| !detail \|\| detail\.request\.id!==selected \|\| !detail\.attachment\)/);
  assert.match(jsx,/fetch\('\/api\/app\?'\+params,\{credentials:'same-origin',cache:'no-store',signal:controller\.signal\}\)/);
- assert.match(jsx,/response\.headers\.get\('content-type'\)/);
- assert.match(jsx,/blob\.size!==attachment\.file_size/);
+ assert.match(jsx,/response\.arrayBuffer\(\)/);
+ assert.match(jsx,/makeAttachmentPreviewBlob\(bytes,attachment\.mime_type,attachment\.file_size\)/);
+ assert.doesNotMatch(jsx,/response\.headers\.get\('content-type'\)/);
  assert.match(jsx,/URL\.createObjectURL\(blob\)/);
  assert.match(jsx,/URL\.revokeObjectURL\(blobUrl\)/);
  assert.match(jsx,/controller\.abort\(\)/);
@@ -151,4 +152,15 @@ test('admin automatically previews private images and PDFs while preserving down
  assert.match(styles,/\.absence-attachment-image\s*\{[^}]*object-fit:contain/);
  assert.match(styles,/\.absence-attachment-pdf\s*\{[^}]*min-height:320px/);
  assert.match(styles,/@media\(max-width:700px\)/);
+});
+
+test('PDF preview uses a tightly-scoped blob frame CSP for local and production mode',()=>{
+ const server=read('../server/index.mjs');
+ const occurrences=(server.match(/frame-src blob:/g)||[]).length;
+ assert.equal(occurrences,2);
+ assert.match(server,/frame-ancestors 'none'/);
+ assert.doesNotMatch(server,/frame-src \*/);
+ const jsx=read('../src/AbsenceRequests.tsx');
+ assert.match(jsx,/makeAttachmentPreviewBlob/);
+ assert.match(jsx,/attachmentPreview\.mimeType==='application\/pdf'/);
 });
