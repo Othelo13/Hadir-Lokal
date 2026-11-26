@@ -102,3 +102,25 @@ test('modal locks background scroll, traps focus, closes by Escape/backdrop and 
  assert.match(jsx,/onKeyDown=\{event=>\{if\(event\.key==='Enter'\|\|event\.key===' '/);
  assert.match(jsx,/detailCloseRef\.current\?\.focus\(\)/);
 });
+
+test('admin modal identifies the applicant with stored name and email, without duplicating on member view',()=>{
+ const jsx=read('../src/AbsenceRequests.tsx');
+ const css=read('../src/absence-requests.css');
+ assert.match(jsx,/\{admin&&detail&&<div className="absence-applicant">/);
+ assert.match(jsx,/\{detail\.request\.name_snapshot\}/);
+ assert.match(jsx,/\{detail\.request\.email_snapshot\}/);
+ assert.match(css,/\.absence-applicant-identity\s*\{[^}]*min-width:0/);
+ assert.match(jsx,/id="absence-detail-heading">Detail pengajuan<\/h2>/);
+});
+test('admin rejection reason is hidden until Tolak, with explicit confirmation and reset',()=>{
+ const jsx=read('../src/AbsenceRequests.tsx');
+ assert.match(jsx,/const \[showRejectReason,setShowRejectReason\] = useState\(false\)/);
+ assert.match(jsx,/\{showRejectReason\?<>/);
+ assert.match(jsx,/onClick=\{\(\)=>\{setShowRejectReason\(true\);setReviewReason\(''\);setDetailError\(''\);\}\}>Tolak/);
+ assert.match(jsx,/onClick=\{\(\)=>transition\('reject'\)\}>Konfirmasi penolakan/);
+ assert.match(jsx,/onClick=\{\(\)=>transition\('approve'\)\}>Setujui/);
+ assert.match(jsx,/onClick=\{\(\)=>\{setShowRejectReason\(false\);setReviewReason\(''\);setDetailError\(''\);\}\}>Kembali/);
+ assert.match(jsx,/if\(showRejectReason\) rejectReasonRef\.current\?\.focus\(\)/);
+ assert.match(jsx,/text\.length<5\|\|text\.length>500/);
+ assert.match(jsx,/setReviewReason\(''\);setShowRejectReason\(false\);setDetailRevision/);
+});

@@ -80,6 +80,8 @@ export default function AbsenceRequests({admin}:{admin:boolean}) {
   const [detail,setDetail] = useState<DetailResult | null>(null);
   const [detailError,setDetailError] = useState('');
   const [reviewReason,setReviewReason] = useState('');
+  const [showRejectReason,setShowRejectReason] = useState(false);
+  const rejectReasonRef = useRef<HTMLTextAreaElement>(null);
   const [detailRevision,setDetailRevision] = useState(0);
   const detailDialogRef = useRef<HTMLElement>(null);
   const detailCloseRef = useRef<HTMLButtonElement>(null);
@@ -145,10 +147,14 @@ export default function AbsenceRequests({admin}:{admin:boolean}) {
       .catch(err=>{if(!controller.signal.aborted)setDetailError(err instanceof Error?err.message:'Gagal memuat rincian.');});
     return ()=>controller.abort();
   },[selected,detailRevision]);
+  useEffect(()=>{
+    if(showRejectReason) rejectReasonRef.current?.focus();
+  },[showRejectReason]);
   function toggleDetail(id: string, opener: HTMLElement) {
     detailOpenerRef.current = opener;
     setSelected(current=>current===id?null:id);
     setReviewReason('');
+    setShowRejectReason(false);
   }
   async function submit(event:FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -179,7 +185,7 @@ export default function AbsenceRequests({admin}:{admin:boolean}) {
     try{
       await request('absence-'+action,{method:'POST',body:{id:selected,...(text?{reason:text}:{})}});
       setSuccess(action==='approve'?'Pengajuan disetujui.':action==='reject'?'Pengajuan ditolak.':'Pengajuan dibatalkan.');
-      setReviewReason('');setDetailRevision(v=>v+1);refresh();
+      setReviewReason('');setShowRejectReason(false);setDetailRevision(v=>v+1);refresh();
     }catch(err){setDetailError(err instanceof Error?err.message:'Gagal memperbarui status.');}
     finally {setBusy(false);}
   }
@@ -276,7 +282,17 @@ export default function AbsenceRequests({admin}:{admin:boolean}) {
       <section id="absence-request-detail" ref={detailDialogRef} tabIndex={-1}
         role="dialog" aria-modal="true" aria-labelledby="absence-detail-heading"
         className="modal absence-detail absence-modal-card">
-        <div className="absence-detail-head"><h2 id="absence-detail-heading">Detail pengajuan</h2>
+        <div className="absence-detail-head">
+          <div className="absence-detail-heading">
+            <h2 id="absence-detail-heading">Detail pengajuan</h2>
+            {admin&&detail&&<div className="absence-applicant">
+              <span className="absence-applicant-avatar" aria-hidden="true">{detail.request.name_snapshot.slice(0,2).toUpperCase()}</span>
+              <div className="absence-applicant-identity">
+                <strong>{detail.request.name_snapshot}</strong>
+                <span>{detail.request.email_snapshot}</span>
+              </div>
+            </div>}
+          </div>
           <button type="button" ref={detailCloseRef} className="icon-button" aria-label="Tutup detail"
             disabled={busy} onClick={()=>setSelected(null)}><X size={20}/></button>
         </div>
@@ -296,8 +312,22 @@ export default function AbsenceRequests({admin}:{admin:boolean}) {
         <p className="absence-helper">Tanggal efektif: {detail.days.map(displayDate).join(', ')}</p>
         {detail.history.length>0&&<div className="absence-detail-text"><strong>Riwayat status</strong><ul>{detail.history.map((event,index)=><li key={index}>{statusLabels[event.to_status]}{event.reason?' — '+event.reason:''}</li>)}</ul></div>}
         {admin&&detail.request.status==='pending'&&<div className="absence-review">
-          <label>Alasan penolakan (wajib jika menolak)<textarea rows={2} value={reviewReason} onChange={e=>setReviewReason(e.target.value)} maxLength={500} placeholder="Alasan keputusan admin..."/></label>
-          <div className="absence-actions"><button type="button" className="button primary" disabled={busy} onClick={()=>transition('approve')}>Setujui</button><button type="button" className="button" disabled={busy} onClick={()=>transition('reject')}>Tolak</button></div>
+          {showRejectReason?<>
+            <label>Alasan penolakan (wajib)
+              <textarea ref={rejectReasonRef} rows={2} value={reviewReason}
+                onChange={e=>setReviewReason(e.target.value)} minLength={5} maxLength={500}
+                placeholder="Tuliskan alasan penolakan pengajuan..."/>
+            </label>
+            <div className="absence-actions">
+              <button type="button" className="button primary" disabled={busy} onClick={()=>transition('reject')}>Konfirmasi penolakan</button>
+              <button type="button" className="button" disabled={busy}
+                onClick={()=>{setShowRejectReason(false);setReviewReason('');setDetailError('');}}>Kembali</button>
+            </div>
+          </>:<div className="absence-actions">
+            <button type="button" className="button primary" disabled={busy} onClick={()=>transition('approve')}>Setujui</button>
+            <button type="button" className="button" disabled={busy}
+              onClick={()=>{setShowRejectReason(true);setReviewReason('');setDetailError('');}}>Tolak</button>
+          </div>}
         </div>}
         {admin&&detail.request.status==='approved'&&<div className="absence-review">
           <label>Alasan pembatalan (wajib)<textarea rows={2} maxLength={500} value={reviewReason} onChange={e=>setReviewReason(e.target.value)} placeholder="Alasan pembatalan..."/></label>
