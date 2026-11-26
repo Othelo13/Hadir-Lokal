@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight, Download, FilePlus2, RefreshCw, X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { CalendarDays, ChevronLeft, ChevronRight, Download, FilePlus2, Paperclip, RefreshCw, X } from 'lucide-react';
 import './absence-requests.css';
 
 type Kind = 'leave' | 'sick';
@@ -74,6 +74,7 @@ export default function AbsenceRequests({admin}:{admin:boolean}) {
   const [endDate,setEndDate] = useState('');
   const [reason,setReason] = useState('');
   const [file,setFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [selected,setSelected] = useState<string | null>(null);
   const [detail,setDetail] = useState<DetailResult | null>(null);
   const [detailError,setDetailError] = useState('');
@@ -112,6 +113,7 @@ export default function AbsenceRequests({admin}:{admin:boolean}) {
       const attachment = file ? await encodeAttachment(file) : undefined;
       await request('absence-submit',{method:'POST',body:{type:kind,startDate,endDate,reason:reason.trim(),...(attachment?{attachment}:{})}});
       setFormOpen(false);setStartDate('');setEndDate('');setReason('');setFile(null);
+      if(fileInputRef.current) fileInputRef.current.value = '';
       setSuccess('Pengajuan berhasil dikirim dan menunggu persetujuan admin.');
       setStatus('');setPage(1);refresh();
     }catch(err){setError(err instanceof Error?err.message:'Gagal mengirim pengajuan.');}
@@ -152,7 +154,7 @@ export default function AbsenceRequests({admin}:{admin:boolean}) {
   }
   return <section className="panel absence-page">
     <div className="absence-page-toolbar">
-      <div><h2>{admin?'Daftar pengajuan anggota':'Riwayat pengajuan'}</h2><p>{admin?'Tinjau izin dan sakit yang diajukan anggota.':'Pantau izin dan sakit yang sudah kamu ajukan.'}</p></div>
+      <div><h2>{admin?'Daftar pengajuan anggota':formOpen?'Pengajuan & riwayat':'Riwayat pengajuan'}</h2><p>{admin?'Tinjau izin dan sakit yang diajukan anggota.':'Pantau izin dan sakit yang sudah kamu ajukan.'}</p></div>
       <div className="absence-page-controls">
         <label>Status
           <select value={status} onChange={e=>{setStatus(e.target.value);setPage(1);setSelected(null);}} aria-label="Filter status pengajuan">
@@ -167,17 +169,35 @@ export default function AbsenceRequests({admin}:{admin:boolean}) {
     {success&&<p className="absence-feedback" role="status">{success}</p>}
     {error&&<p className="absence-error" role="alert">{error}</p>}
     {!admin&&formOpen&&<form className="absence-form" onSubmit={submit}>
-      <h3>Pengajuan baru</h3>
+      <div className="absence-form-heading"><h3>Pengajuan baru</h3><p>Isi informasi izin atau sakit yang ingin diajukan.</p></div>
       <label>Jenis pengajuan<select value={kind} onChange={e=>setKind(e.target.value as Kind)} required><option value="leave">Izin</option><option value="sick">Sakit</option></select></label>
       <div className="absence-date-grid">
         <label>Tanggal mulai<input type="date" required value={startDate} onChange={e=>setStartDate(e.target.value)}/></label>
         <label>Tanggal selesai<input type="date" required min={startDate||undefined} value={endDate} onChange={e=>setEndDate(e.target.value)}/></label>
       </div>
       <label>Alasan<textarea rows={3} required minLength={5} maxLength={500} value={reason} onChange={e=>setReason(e.target.value)} placeholder="Tuliskan alasan pengajuan..."/></label>
-      <label>Lampiran pendukung (opsional)<input type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={e=>setFile(e.target.files?.[0]??null)}/></label>
-      <p className="absence-helper">JPG, PNG, atau PDF, maksimal 5 MiB. Tanggal lampau dan mendatang diperbolehkan. Satu pengajuan maksimal 366 hari kalender sebagai batas teknis.</p>
+      <div className="absence-file-field">
+        <span className="absence-file-caption" id="absence-file-caption">Lampiran pendukung (opsional)</span>
+        <div className="absence-file-picker">
+          <input ref={fileInputRef} id="absence-file-input" className="absence-file-input"
+            type="file" accept=".jpg,.jpeg,.png,.pdf" aria-labelledby="absence-file-caption"
+            onChange={e=>setFile(e.target.files?.[0]??null)}/>
+          <label className="absence-file-button" htmlFor="absence-file-input"><Paperclip size={15}/> Pilih file</label>
+          <span className="absence-file-name" title={file?.name??'Belum ada file dipilih'}>
+            {file?.name??'Belum ada file dipilih'}
+          </span>
+          {file&&<button type="button" className="absence-file-remove"
+            aria-label="Hapus lampiran" disabled={busy}
+            onClick={()=>{setFile(null);if(fileInputRef.current)fileInputRef.current.value='';}}><X size={16}/></button>}
+        </div>
+      </div>
+      <p className="absence-helper">Kamu dapat mengajukan izin atau sakit untuk tanggal sebelumnya maupun mendatang. Lampiran JPG, PNG, atau PDF bersifat opsional, maksimal 5 MB.</p>
       <div className="absence-actions"><button className="button primary" type="submit" disabled={busy}>{busy?'Mengirim…':'Kirim pengajuan'}</button><button type="button" className="button" disabled={busy} onClick={()=>setFormOpen(false)}>Batal</button></div>
     </form>}
+    {!admin&&formOpen&&<div className="absence-history-heading">
+      <h3>Riwayat pengajuan</h3>
+      <p>Daftar pengajuan dan status persetujuanmu.</p>
+    </div>}
     <div className="table-wrap"><table className="absence-table">
       <thead><tr>{admin&&<th>Anggota</th>}<th>Jenis</th><th>Periode</th><th>Hari kerja</th><th>Status</th><th>Detail</th></tr></thead>
       <tbody>{rows.map(row=><tr key={row.id}>

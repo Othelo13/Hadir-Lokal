@@ -4,12 +4,25 @@
 .absence-page-toolbar p {font-size:11px;color:var(--muted);margin-top:5px;}
 .absence-page-controls {display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;}
 .absence-page label,.absence-form label,.absence-review label {display:flex;flex-direction:column;gap:7px;font-size:11px;font-weight:600;color:#697568;}
-.absence-page input,.absence-page select,.absence-page textarea {border:1px solid var(--line);border-radius:7px;background:white;color:var(--ink);min-width:0;font-size:12px;}
+.absence-page input,.absence-page select,.absence-page textarea {border:1px solid var(--line);border-radius:7px;background:white;color:var(--ink);min-width:0;font-size:12px;font-family:inherit;}
 .absence-page-controls select {height:38px;padding:0 10px;}
 .absence-page .absence-form {padding:20px 24px;background:#fcfdfa;border-bottom:1px solid var(--line);display:grid;gap:15px;}
 .absence-form h3,.absence-detail h3 {font-size:15px;}
+.absence-form-heading {display:grid;gap:5px;}
+.absence-form-heading p,.absence-history-heading p {font-size:11px;line-height:1.5;color:var(--muted);}
+.absence-history-heading {padding:17px 24px;border-bottom:1px solid var(--line);display:grid;gap:5px;background:#fff;}
+.absence-history-heading h3 {font-size:14px;}
 .absence-form input,.absence-form select,.absence-form textarea,.absence-review textarea {padding:10px 12px;}
-.absence-form input[type=file] {padding:8px;}
+.absence-file-field {display:grid;gap:7px;min-width:0;}
+.absence-file-caption {font-size:11px;font-weight:600;color:#697568;}
+.absence-file-picker {position:relative;display:flex;align-items:center;gap:12px;min-width:0;min-height:42px;padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:#fff;}
+.absence-page .absence-file-input {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
+.absence-page .absence-file-button {display:inline-flex;flex-direction:row;align-items:center;justify-content:center;gap:7px;flex:0 0 auto;padding:9px 12px;border:1px solid #dce2d6;border-radius:6px;background:#f8faf5;color:#465242;font-size:11px;font-weight:600;cursor:pointer;}
+.absence-page .absence-file-button:hover {background:#f0f4e8;}
+.absence-file-input:focus-visible + .absence-file-button {outline:2px solid #8da766;outline-offset:2px;}
+.absence-file-name {flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--muted);}
+.absence-file-remove {display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;padding:6px;border:0;border-radius:6px;background:transparent;color:#697568;}
+.absence-file-remove:hover {background:#f1f4ed;}
 .absence-date-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
 .absence-actions {display:flex;gap:10px;flex-wrap:wrap;}
 .absence-helper {font-size:11px;line-height:1.65;color:var(--muted);overflow-wrap:anywhere;}
@@ -39,7 +52,7 @@
 .absence-attachment {display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:11px;}
 .absence-review {display:grid;gap:12px;}
 @media(max-width:700px) {
- .absence-page-toolbar,.absence-detail,.absence-page .absence-form {padding:16px;}
+ .absence-page-toolbar,.absence-detail,.absence-page .absence-form,.absence-history-heading {padding:16px;}
  .absence-page-controls {width:100%;}
  .absence-date-grid,.absence-detail-grid {grid-template-columns:repeat(2,minmax(0,1fr));}
  .absence-page-controls>.button {flex:1;}
