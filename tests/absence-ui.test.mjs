@@ -132,3 +132,23 @@ test('member and admin detail display a day count instead of enumerating effecti
  assert.doesNotMatch(jsx,/detail\.days\.map\(displayDate\)/);
  assert.match(jsx,/\{detail&&<>/);
 });
+
+test('admin automatically previews private images and PDFs while preserving download',()=>{
+ const jsx=read('../src/AbsenceRequests.tsx');
+ const styles=read('../src/absence-requests.css');
+ assert.match(jsx,/if\(!admin \|\| !selected \|\| !detail \|\| detail\.request\.id!==selected \|\| !detail\.attachment\)/);
+ assert.match(jsx,/fetch\('\/api\/app\?'\+params,\{credentials:'same-origin',cache:'no-store',signal:controller\.signal\}\)/);
+ assert.match(jsx,/response\.headers\.get\('content-type'\)/);
+ assert.match(jsx,/blob\.size!==attachment\.file_size/);
+ assert.match(jsx,/URL\.createObjectURL\(blob\)/);
+ assert.match(jsx,/URL\.revokeObjectURL\(blobUrl\)/);
+ assert.match(jsx,/controller\.abort\(\)/);
+ assert.match(jsx,/\{admin&&<div className="absence-attachment-preview"/);
+ assert.match(jsx,/attachmentPreview\.mimeType==='application\/pdf'/);
+ assert.match(jsx,/<iframe className="absence-attachment-pdf" title=/);
+ assert.match(jsx,/<img className="absence-attachment-image" src=\{attachmentPreview\.url\}/);
+ assert.match(jsx,/onClick=\{downloadAttachment\}/);
+ assert.match(styles,/\.absence-attachment-image\s*\{[^}]*object-fit:contain/);
+ assert.match(styles,/\.absence-attachment-pdf\s*\{[^}]*min-height:320px/);
+ assert.match(styles,/@media\(max-width:700px\)/);
+});

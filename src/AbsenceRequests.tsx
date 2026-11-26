@@ -11,6 +11,7 @@ interface Row {
   created_at: string; effective_day_count: number; has_attachment: number;
 }
 interface ListResult { rows: Row[]; page: number; pageSize: number; total: number; totalPages: number }
+interface AttachmentPreview { requestId: string; url: string; mimeType: string }
 interface DetailResult {
   request: Row & { reason: string; review_reason: string | null; cancel_reason: string | null };
   days: string[];
@@ -79,6 +80,9 @@ export default function AbsenceRequests({admin}:{admin:boolean}) {
   const [selected,setSelected] = useState<string | null>(null);
   const [detail,setDetail] = useState<DetailResult | null>(null);
   const [detailError,setDetailError] = useState('');
+  const [attachmentPreview,setAttachmentPreview] = useState<AttachmentPreview | null>(null);
+  const [previewLoading,setPreviewLoading] = useState(false);
+  const [previewError,setPreviewError] = useState('');
   const [reviewReason,setReviewReason] = useState('');
   const [showRejectReason,setShowRejectReason] = useState(false);
   const rejectReasonRef = useRef<HTMLTextAreaElement>(null);
@@ -147,6 +151,56 @@ export default function AbsenceRequests({admin}:{admin:boolean}) {
       .catch(err=>{if(!controller.signal.aborted)setDetailError(err instanceof Error?err.message:'Gagal memuat rincian.');});
     return ()=>controller.abort();
   },[selected,detailRevision]);
+  // An authenticated, temporary object URL is used only while an admin examines
+  // a specific request. The private download route and its permissions stay intact.
+  useEffect(()=>{
+    setAttachmentPreview(null);
+    setPreviewError('');
+    if(!admin || !selected || !detail || detail.request.id!==selected || !detail.attachment){
+      setPreviewLoading(false);
+      return;
+    }
+    const attachment=detail.attachment;
+    const requestId=selected;
+    if(!['image/jpeg','image/png','application/pdf'].includes(attachment.mime_type)){
+      setPreviewError('Format ini tidak mendukung pratinjau.');
+      setPreviewLoading(false);
+      return;
+    }
+    const controller=new AbortController();
+    let blobUrl: string | null=null;
+    setPreviewLoading(true);
+    const params=new URLSearchParams({action:'absence-attachment',id:requestId});
+    fetch('/api/app?'+params,{credentials:'same-origin',cache:'no-store',signal:controller.signal})
+      .then(async response=>{
+        if(!response.ok){
+          const payload:unknown=await response.json().catch(()=>null);
+          throw new Error(errorText(payload,'Gagal memuat pratinjau lampiran.'));
+        }
+        if(response.headers.get('content-type')?.split(';')[0].trim()!==attachment.mime_type){
+          throw new Error('Format lampiran dari server tidak sesuai.');
+        }
+        const blob=await response.blob();
+        if(blob.size!==attachment.file_size || blob.size===0){
+          throw new Error('Ukuran lampiran dari server tidak sesuai.');
+        }
+        return blob;
+      })
+      .then(blob=>{
+        if(controller.signal.aborted)return;
+        blobUrl=URL.createObjectURL(blob);
+        setAttachmentPreview({requestId,url:blobUrl,mimeType:attachment.mime_type});
+      })
+      .catch(cause=>{
+        if(controller.signal.aborted)return;
+        setPreviewError(cause instanceof Error?cause.message:'Pratinjau lampiran tidak tersedia.');
+      })
+      .finally(()=>{if(!controller.signal.aborted)setPreviewLoading(false);});
+    return ()=>{
+      controller.abort();
+      if(blobUrl)URL.revokeObjectURL(blobUrl);
+    };
+  },[admin,selected,detail?.request.id,detail?.attachment?.mime_type,detail?.attachment?.file_size]);
   useEffect(()=>{
     if(showRejectReason) rejectReasonRef.current?.focus();
   },[showRejectReason]);
@@ -308,7 +362,21 @@ export default function AbsenceRequests({admin}:{admin:boolean}) {
         <div className="absence-detail-text"><strong>Alasan pengajuan</strong><p>{detail.request.reason}</p></div>
         {detail.request.review_reason&&<div className="absence-detail-text"><strong>Catatan admin</strong><p>{detail.request.review_reason}</p></div>}
         {detail.request.cancel_reason&&<div className="absence-detail-text"><strong>Alasan pembatalan</strong><p>{detail.request.cancel_reason}</p></div>}
-        {detail.attachment&&<div className="absence-attachment"><span>Lampiran: {detail.attachment.original_name}</span><button className="button" type="button" disabled={busy} onClick={downloadAttachment}><Download size={15}/> Unduh</button></div>}
+        {detail.attachment&&<div className="absence-attachment-block">
+          <div className="absence-attachment">
+            <span>Lampiran: {detail.attachment.original_name}</span>
+            <button className="button" type="button" disabled={busy} onClick={downloadAttachment}><Download size={15}/> Unduh</button>
+          </div>
+          {admin&&<div className="absence-attachment-preview" aria-label="Pratinjau lampiran">
+            {previewLoading&&<p className="absence-attachment-preview-status" role="status">Memuat pratinjau lampiran…</p>}
+            {previewError&&<p className="absence-attachment-preview-status" role="alert">{previewError} Gunakan tombol Unduh jika diperlukan.</p>}
+            {attachmentPreview?.requestId===selected&&(
+              attachmentPreview.mimeType==='application/pdf'
+                ? <iframe className="absence-attachment-pdf" title={'Pratinjau PDF: '+detail.attachment.original_name} src={attachmentPreview.url}/>
+                : <img className="absence-attachment-image" src={attachmentPreview.url} alt={'Pratinjau lampiran: '+detail.attachment.original_name}/>
+            )}
+          </div>}
+        </div>}
         <p className="absence-helper">Jumlah hari: {detail.days.length} hari</p>
         {detail.history.length>0&&<div className="absence-detail-text"><strong>Riwayat status</strong><ul>{detail.history.map((event,index)=><li key={index}>{statusLabels[event.to_status]}{event.reason?' — '+event.reason:''}</li>)}</ul></div>}
         {admin&&detail.request.status==='pending'&&<div className="absence-review">

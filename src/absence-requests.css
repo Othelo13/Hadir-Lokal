@@ -69,7 +69,13 @@
 .absence-detail-text {display:grid;gap:6px;font-size:12px;line-height:1.6;min-width:0;}
 .absence-detail-text p {white-space:pre-wrap;overflow-wrap:anywhere;}
 .absence-detail-text ul {margin:0;padding-left:18px;}
+.absence-attachment-block {display:grid;gap:12px;min-width:0;}
 .absence-attachment {display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:11px;}
+.absence-attachment span {overflow-wrap:anywhere;}
+.absence-attachment-preview {display:grid;place-items:center;min-width:0;min-height:150px;padding:12px;border:1px solid var(--line);border-radius:8px;background:#fff;overflow:hidden;}
+.absence-attachment-preview-status {font-size:11px;line-height:1.6;color:var(--muted);text-align:center;}
+.absence-attachment-image {display:block;max-width:100%;max-height:min(54dvh,460px);height:auto;width:auto;object-fit:contain;}
+.absence-attachment-pdf {display:block;width:100%;height:min(56dvh,550px);min-height:320px;border:0;background:#fff;}
 .absence-review {display:grid;gap:12px;}
 @media(max-width:700px) {
  .absence-table-hint {display:block;margin:0;padding:11px 16px;border-bottom:1px solid var(--line);font-size:11px;line-height:1.5;color:var(--muted);}
@@ -77,6 +83,8 @@
  .absence-modal-overlay {padding:12px;align-items:center;}
  .modal.absence-modal-card {padding:18px;max-height:calc(100dvh - 24px);border-radius:12px;}
  .absence-modal-card .absence-detail-head h2 {font-size:17px;}
+ .absence-attachment-preview {padding:8px;}
+ .absence-attachment-pdf {height:48dvh;min-height:280px;}
  .absence-page-controls {width:100%;}
  .absence-date-grid,.absence-detail-grid {grid-template-columns:repeat(2,minmax(0,1fr));}
  .absence-page-controls>.button {flex:1;}
