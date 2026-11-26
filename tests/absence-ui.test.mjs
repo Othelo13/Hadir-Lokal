@@ -43,3 +43,12 @@ test('form input fonts match Hadir and helper text omits technical range details
  assert.doesNotMatch(jsx,/366 hari kalender/);
  assert.match(jsx,/5\*1024\*1024/);
 });
+
+test('status filter hides the green focus outline only within absence page toolbar',()=>{
+ const jsx=read('../src/AbsenceRequests.tsx');
+ const css=read('../src/absence-requests.css');
+ assert.match(jsx,/className="absence-page-controls"/);
+ assert.match(jsx,/aria-label="Filter status pengajuan"/);
+ assert.match(css,/\.absence-page \.absence-page-controls select:focus-visible\s*\{\s*outline:none;box-shadow:none;background-color:#f6f9f2;/);
+ assert.doesNotMatch(css,/^select:focus-visible\s*\{/m);
+});

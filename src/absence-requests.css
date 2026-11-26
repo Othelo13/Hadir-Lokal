@@ -6,6 +6,8 @@
 .absence-page label,.absence-form label,.absence-review label {display:flex;flex-direction:column;gap:7px;font-size:11px;font-weight:600;color:#697568;}
 .absence-page input,.absence-page select,.absence-page textarea {border:1px solid var(--line);border-radius:7px;background:white;color:var(--ink);min-width:0;font-size:12px;font-family:inherit;}
 .absence-page-controls select {height:38px;padding:0 10px;}
+/* Keep the status filter clean on focus without affecting other controls. */
+.absence-page .absence-page-controls select:focus-visible {outline:none;box-shadow:none;background-color:#f6f9f2;}
 .absence-page .absence-form {padding:20px 24px;background:#fcfdfa;border-bottom:1px solid var(--line);display:grid;gap:15px;}
 .absence-form h3,.absence-detail h3 {font-size:15px;}
 .absence-form-heading {display:grid;gap:5px;}
