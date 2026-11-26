@@ -124,3 +124,11 @@ test('admin rejection reason is hidden until Tolak, with explicit confirmation a
  assert.match(jsx,/text\.length<5\|\|text\.length>500/);
  assert.match(jsx,/setReviewReason\(''\);setShowRejectReason\(false\);setDetailRevision/);
 });
+
+test('member and admin detail display a day count instead of enumerating effective dates',()=>{
+ const jsx=read('../src/AbsenceRequests.tsx');
+ assert.match(jsx,/<p className="absence-helper">Jumlah hari: \{detail\.days\.length\} hari<\/p>/);
+ assert.doesNotMatch(jsx,/Tanggal efektif:/);
+ assert.doesNotMatch(jsx,/detail\.days\.map\(displayDate\)/);
+ assert.match(jsx,/\{detail&&<>/);
+});

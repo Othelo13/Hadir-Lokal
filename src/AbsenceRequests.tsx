@@ -309,7 +309,7 @@ export default function AbsenceRequests({admin}:{admin:boolean}) {
         {detail.request.review_reason&&<div className="absence-detail-text"><strong>Catatan admin</strong><p>{detail.request.review_reason}</p></div>}
         {detail.request.cancel_reason&&<div className="absence-detail-text"><strong>Alasan pembatalan</strong><p>{detail.request.cancel_reason}</p></div>}
         {detail.attachment&&<div className="absence-attachment"><span>Lampiran: {detail.attachment.original_name}</span><button className="button" type="button" disabled={busy} onClick={downloadAttachment}><Download size={15}/> Unduh</button></div>}
-        <p className="absence-helper">Tanggal efektif: {detail.days.map(displayDate).join(', ')}</p>
+        <p className="absence-helper">Jumlah hari: {detail.days.length} hari</p>
         {detail.history.length>0&&<div className="absence-detail-text"><strong>Riwayat status</strong><ul>{detail.history.map((event,index)=><li key={index}>{statusLabels[event.to_status]}{event.reason?' — '+event.reason:''}</li>)}</ul></div>}
         {admin&&detail.request.status==='pending'&&<div className="absence-review">
           {showRejectReason?<>
