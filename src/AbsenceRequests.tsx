@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, Download, FilePlus2, Paperclip, RefreshCw, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import './absence-requests.css';
 
 type Kind = 'leave' | 'sick';
@@ -80,6 +81,48 @@ export default function AbsenceRequests({admin}:{admin:boolean}) {
   const [detailError,setDetailError] = useState('');
   const [reviewReason,setReviewReason] = useState('');
   const [detailRevision,setDetailRevision] = useState(0);
+  const detailDialogRef = useRef<HTMLElement>(null);
+  const detailCloseRef = useRef<HTMLButtonElement>(null);
+  const detailOpenerRef = useRef<HTMLElement | null>(null);
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
+
+  // Keep keyboard navigation inside the modal and restore focus to the row when closing.
+  useEffect(() => {
+    if (!selected) return;
+    const previousOverflow = document.body.style.overflow;
+    const opener = detailOpenerRef.current;
+    document.body.style.overflow = 'hidden';
+    detailCloseRef.current?.focus();
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        if (busyRef.current) return;
+        event.preventDefault();
+        setSelected(null);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const dialog = detailDialogRef.current;
+      if (!dialog) return;
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )).filter(element => element.getClientRects().length > 0);
+      if (!focusable.length) { event.preventDefault(); dialog.focus(); return; }
+      const first = focusable[0], last = focusable[focusable.length - 1];
+      const current = document.activeElement as HTMLElement | null;
+      if (event.shiftKey && (current === first || !dialog.contains(current))) {
+        event.preventDefault(); last.focus();
+      } else if (!event.shiftKey && (current === last || !dialog.contains(current))) {
+        event.preventDefault(); first.focus();
+      }
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      if (opener?.isConnected) opener.focus();
+    };
+  }, [selected]);
 
   const refresh = useCallback(() => setRevision(value=>value+1), []);
   useEffect(() => {
@@ -102,7 +145,8 @@ export default function AbsenceRequests({admin}:{admin:boolean}) {
       .catch(err=>{if(!controller.signal.aborted)setDetailError(err instanceof Error?err.message:'Gagal memuat rincian.');});
     return ()=>controller.abort();
   },[selected,detailRevision]);
-  function toggleDetail(id: string) {
+  function toggleDetail(id: string, opener: HTMLElement) {
+    detailOpenerRef.current = opener;
     setSelected(current=>current===id?null:id);
     setReviewReason('');
   }
@@ -156,7 +200,8 @@ export default function AbsenceRequests({admin}:{admin:boolean}) {
     }catch(err){setDetailError(err instanceof Error?err.message:'Gagal mengunduh lampiran.');}
     finally{setBusy(false);}
   }
-  return <section className="panel absence-page">
+  return <>
+  <section className="panel absence-page">
     <div className="absence-page-toolbar">
       <div><h2>{admin?'Daftar pengajuan anggota':formOpen?'Pengajuan & riwayat':'Riwayat pengajuan'}</h2><p>{admin?'Tinjau izin dan sakit yang diajukan anggota.':'Pantau izin dan sakit yang sudah kamu ajukan.'}</p></div>
       <div className="absence-page-controls">
@@ -210,8 +255,8 @@ export default function AbsenceRequests({admin}:{admin:boolean}) {
         aria-label={`Buka detail pengajuan ${kindLabels[row.type]} ${admin?'oleh '+row.name_snapshot+' ':''}tanggal ${displayDate(row.start_date)} sampai ${displayDate(row.end_date)}, ${statusLabels[row.status]}`}
         aria-expanded={selected===row.id}
         aria-controls={selected===row.id?'absence-request-detail':undefined}
-        onClick={()=>toggleDetail(row.id)}
-        onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDetail(row.id);}}}>
+        onClick={event=>toggleDetail(row.id,event.currentTarget)}
+        onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDetail(row.id,event.currentTarget);}}}>
         {admin&&<td><strong>{row.name_snapshot}</strong><small>{row.email_snapshot}</small></td>}
         <td>{kindLabels[row.type]}</td><td>{displayDate(row.start_date)} – {displayDate(row.end_date)}</td>
         <td>{row.effective_day_count}</td><td><span className={'badge absence-status-'+row.status}>{statusLabels[row.status]}</span></td>
@@ -224,8 +269,17 @@ export default function AbsenceRequests({admin}:{admin:boolean}) {
       <div><button type="button" className="button" disabled={loading||page<=1} onClick={()=>setPage(p=>p-1)} aria-label="Halaman sebelumnya"><ChevronLeft size={16}/></button>
       <button type="button" className="button" disabled={loading||page>=totalPages} onClick={()=>setPage(p=>p+1)} aria-label="Halaman berikutnya"><ChevronRight size={16}/></button></div>
     </div>
-    {selected&&<section id="absence-request-detail" className="absence-detail" aria-label="Rincian pengajuan">
-      <div className="absence-detail-head"><h3>Detail pengajuan</h3><button type="button" className="icon-button" aria-label="Tutup detail" onClick={()=>setSelected(null)}><X size={18}/></button></div>
+  </section>
+  {selected&&createPortal(
+    <div className="overlay absence-modal-overlay"
+      onMouseDown={event=>{if(event.currentTarget===event.target&&!busyRef.current)setSelected(null);}}>
+      <section id="absence-request-detail" ref={detailDialogRef} tabIndex={-1}
+        role="dialog" aria-modal="true" aria-labelledby="absence-detail-heading"
+        className="modal absence-detail absence-modal-card">
+        <div className="absence-detail-head"><h2 id="absence-detail-heading">Detail pengajuan</h2>
+          <button type="button" ref={detailCloseRef} className="icon-button" aria-label="Tutup detail"
+            disabled={busy} onClick={()=>setSelected(null)}><X size={20}/></button>
+        </div>
       {detailError&&<p role="alert" className="absence-error">{detailError}</p>}
       {!detail&&!detailError&&<p>Memuat rincian…</p>}
       {detail&&<>
@@ -251,6 +305,7 @@ export default function AbsenceRequests({admin}:{admin:boolean}) {
         </div>}
         {!admin&&detail.request.status==='pending'&&<div className="absence-actions"><button type="button" className="button" disabled={busy} onClick={()=>transition('cancel')}>Batalkan pengajuan</button></div>}
       </>}
-    </section>}
-  </section>;
+      </section>
+    </div>,document.body)}
+  </>;
 }

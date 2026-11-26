@@ -72,9 +72,33 @@ test('both roles open absence details by clicking a full row or pressing Enter/S
  assert.match(jsx,/<tr key=\{row\.id\} role="button" tabIndex=\{0\}/);
  assert.match(jsx,/aria-expanded=\{selected===row\.id\}/);
  assert.match(jsx,/aria-controls=\{selected===row\.id\?'absence-request-detail':undefined\}/);
- assert.match(jsx,/onClick=\{\(\)=>toggleDetail\(row\.id\)\}/);
+ assert.match(jsx,/onClick=\{event=>toggleDetail\(row\.id,event\.currentTarget\)\}/);
  assert.match(jsx,/event\.key==='Enter'\|\|event\.key===' '/);
- assert.match(jsx,/id="absence-request-detail" className="absence-detail"/);
+ assert.match(jsx,/id="absence-request-detail" ref=\{detailDialogRef\} tabIndex=\{-1\}/);
  assert.match(css,/\.absence-table tbody tr\[role="button"\]\s*\{cursor:pointer;\}/);
  assert.match(css,/\.absence-table tbody tr\[role="button"\]:focus-visible\s*\{[^}]*background:/);
+});
+
+test('request details render in a responsive modal rather than beneath the table',()=>{
+ const jsx=read('../src/AbsenceRequests.tsx');
+ const css=read('../src/absence-requests.css');
+ assert.match(jsx,/import \{ createPortal \} from 'react-dom'/);
+ assert.match(jsx,/\{selected&&createPortal\(/);
+ assert.match(jsx,/className="overlay absence-modal-overlay"/);
+ assert.match(jsx,/role="dialog" aria-modal="true" aria-labelledby="absence-detail-heading"/);
+ assert.match(jsx,/className="modal absence-detail absence-modal-card"/);
+ assert.match(css,/\.modal\.absence-modal-card\s*\{[^}]*max-height:calc\(100dvh - 40px\)/);
+ assert.match(css,/@media\(max-width:700px\)/);
+ assert.match(jsx,/aria-label="Tutup detail"/);
+});
+test('modal locks background scroll, traps focus, closes by Escape/backdrop and restores focus',()=>{
+ const jsx=read('../src/AbsenceRequests.tsx');
+ assert.match(jsx,/document\.body\.style\.overflow = 'hidden'/);
+ assert.match(jsx,/document\.body\.style\.overflow = previousOverflow/);
+ assert.match(jsx,/if \(opener\?\.isConnected\) opener\.focus\(\)/);
+ assert.match(jsx,/event\.key === 'Escape'/);
+ assert.match(jsx,/event\.key !== 'Tab'/);
+ assert.match(jsx,/event\.currentTarget===event\.target&&!busyRef\.current/);
+ assert.match(jsx,/onKeyDown=\{event=>\{if\(event\.key==='Enter'\|\|event\.key===' '/);
+ assert.match(jsx,/detailCloseRef\.current\?\.focus\(\)/);
 });

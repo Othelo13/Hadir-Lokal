@@ -48,6 +48,13 @@
 .absence-pagination>div {display:flex;gap:8px;}
 .absence-loading {padding:18px 24px;color:var(--muted);}
 .absence-detail {border-top:1px solid var(--line);padding:20px 24px;display:grid;gap:16px;background:#fcfdfa;}
+.absence-modal-overlay {z-index:120;padding:20px;}
+.modal.absence-modal-card {width:100%;max-width:800px;max-height:calc(100dvh - 40px);padding:26px;border:1px solid var(--line);border-radius:14px;overflow-y:auto;overscroll-behavior:contain;background:#fcfdfa;box-shadow:0 24px 80px #0a221d40;}
+.absence-modal-card .absence-detail-head h2 {font-size:19px;}
+.absence-modal-card .absence-detail-head {padding-bottom:14px;border-bottom:1px solid var(--line);}
+.absence-modal-card .absence-error {margin:0;}
+.modal.absence-modal-card p {margin:0;}
+.absence-modal-card .absence-review textarea {font-family:inherit;font-size:12px;border:1px solid var(--line);border-radius:7px;background:white;color:var(--ink);width:100%;}
 .absence-detail-head {display:flex;align-items:center;justify-content:space-between;}
 .absence-detail-grid {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;}
 .absence-detail-grid>div {display:grid;gap:6px;background:white;border:1px solid var(--line);border-radius:7px;padding:12px;}
@@ -60,10 +67,16 @@
 .absence-review {display:grid;gap:12px;}
 @media(max-width:700px) {
  .absence-table-hint {display:block;margin:0;padding:11px 16px;border-bottom:1px solid var(--line);font-size:11px;line-height:1.5;color:var(--muted);}
- .absence-page-toolbar,.absence-detail,.absence-page .absence-form,.absence-history-heading {padding:16px;}
+ .absence-page-toolbar,.absence-page .absence-form,.absence-history-heading {padding:16px;}
+ .absence-modal-overlay {padding:12px;align-items:center;}
+ .modal.absence-modal-card {padding:18px;max-height:calc(100dvh - 24px);border-radius:12px;}
+ .absence-modal-card .absence-detail-head h2 {font-size:17px;}
  .absence-page-controls {width:100%;}
  .absence-date-grid,.absence-detail-grid {grid-template-columns:repeat(2,minmax(0,1fr));}
  .absence-page-controls>.button {flex:1;}
  .absence-error,.absence-feedback {margin:12px 16px 0;}
  .absence-pagination {padding:14px 16px;}
+}
+@media(max-width:380px) {
+ .absence-modal-card .absence-detail-grid {grid-template-columns:1fr;}
 }
