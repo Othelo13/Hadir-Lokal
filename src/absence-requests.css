@@ -31,6 +31,7 @@
 .absence-error,.absence-feedback {margin:14px 24px 0;padding:12px 14px;font-size:12px;border-radius:7px;line-height:1.5;}
 .absence-error {background:#fff2f1;color:#9c4742;border:1px solid #f2d6d2;}
 .absence-feedback {background:#f0f6e7;color:#54713e;border:1px solid #dce9ce;}
+.absence-table-hint {display:none;}
 .absence-table {min-width:690px;}
 .absence-table th {padding:14px 16px;font-size:9px;text-transform:uppercase;letter-spacing:.6px;}
 .absence-table td {padding:15px 16px;vertical-align:middle;color:#5c6957;}
@@ -54,6 +55,7 @@
 .absence-attachment {display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:11px;}
 .absence-review {display:grid;gap:12px;}
 @media(max-width:700px) {
+ .absence-table-hint {display:block;margin:0;padding:11px 16px;border-bottom:1px solid var(--line);font-size:11px;line-height:1.5;color:var(--muted);}
  .absence-page-toolbar,.absence-detail,.absence-page .absence-form,.absence-history-heading {padding:16px;}
  .absence-page-controls {width:100%;}
  .absence-date-grid,.absence-detail-grid {grid-template-columns:repeat(2,minmax(0,1fr));}

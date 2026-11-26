@@ -52,3 +52,13 @@ test('status filter hides the green focus outline only within absence page toolb
  assert.match(css,/\.absence-page \.absence-page-controls select:focus-visible\s*\{\s*outline:none;box-shadow:none;background-color:#f6f9f2;/);
  assert.doesNotMatch(css,/^select:focus-visible\s*\{/m);
 });
+
+test('mobile horizontal scroll hint appears only in absence tables on narrow screens',()=>{
+ const jsx=read('../src/AbsenceRequests.tsx');
+ const css=read('../src/absence-requests.css');
+ assert.match(jsx,/<p className="absence-table-hint">Geser tabel ke samping untuk melihat status dan detail pengajuan\.<\/p>/);
+ assert.match(jsx,/className="table-wrap"><table className="absence-table"/);
+ assert.match(css,/\.absence-table-hint\s*\{\s*display:none;\s*\}/);
+ assert.match(css,/@media\(max-width:700px\)\s*\{\s*\.absence-table-hint\s*\{\s*display:block;/);
+ assert.match(css,/\.absence-table\s*\{min-width:690px;\}/);
+});

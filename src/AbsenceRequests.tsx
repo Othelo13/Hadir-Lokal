@@ -198,6 +198,7 @@ export default function AbsenceRequests({admin}:{admin:boolean}) {
       <h3>Riwayat pengajuan</h3>
       <p>Daftar pengajuan dan status persetujuanmu.</p>
     </div>}
+    <p className="absence-table-hint">Geser tabel ke samping untuk melihat status dan detail pengajuan.</p>
     <div className="table-wrap"><table className="absence-table">
       <thead><tr>{admin&&<th>Anggota</th>}<th>Jenis</th><th>Periode</th><th>Hari kerja</th><th>Status</th><th>Detail</th></tr></thead>
       <tbody>{rows.map(row=><tr key={row.id}>
